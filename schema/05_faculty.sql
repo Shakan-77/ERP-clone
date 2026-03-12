@@ -3,6 +3,7 @@
 
 CREATE TABLE Faculty (
     faculty_id INT PRIMARY KEY,
+    faculty_name VARCHAR(30),
     contact_no VARCHAR(10),
     email TEXT,
     department_id INT
