@@ -9,9 +9,5 @@ CREATE TABLE Scheduled_class (
     building_name TEXT,
     room_number INT,
 
-    PRIMARY KEY(course_offering_id, scheduled_day, start_time),
-
-    FOREIGN KEY (course_offering_id) REFERENCES Course_Offerings(course_offering_id),
-    FOREIGN KEY (building_name, room_number)
-        REFERENCES Rooms(building_name, room_number)
+    PRIMARY KEY(course_offering_id, scheduled_day, start_time)
 );

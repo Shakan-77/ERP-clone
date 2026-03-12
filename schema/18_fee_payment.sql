@@ -6,7 +6,5 @@ CREATE TABLE Fee_Payment (
     student_id INT,
     amount_paid NUMERIC,
     total_amount NUMERIC,
-    payment_date DATE,
-
-    FOREIGN KEY (student_id) REFERENCES Students(student_id)
+    payment_date DATE
 );

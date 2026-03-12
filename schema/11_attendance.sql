@@ -7,8 +7,5 @@ CREATE TABLE Attendance (
     class_date DATE,
     status VARCHAR(10),
 
-    PRIMARY KEY(student_id, course_offering_id, class_date),
-
-    FOREIGN KEY (student_id) REFERENCES Students(student_id),
-    FOREIGN KEY (course_offering_id) REFERENCES Course_Offerings(course_offering_id)
+    PRIMARY KEY(student_id, course_offering_id, class_date)
 );

@@ -7,7 +7,5 @@ CREATE TABLE Leave_Requests (
     start_date DATE,
     end_date DATE,
     reason TEXT,
-    status VARCHAR(20),
-
-    FOREIGN KEY (student_id) REFERENCES Students(student_id)
+    status VARCHAR(20)
 );

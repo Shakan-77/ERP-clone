@@ -8,6 +8,6 @@ CREATE TABLE Users (
             password ~ '[A-Z]' AND
             password ~ '[0-9]' AND
             password ~ '[^A-Za-z0-9]'
-        )
+        ),
     role VARCHAR(10) CHECK (role IN ('Admin','Faculty','Student'))
 );

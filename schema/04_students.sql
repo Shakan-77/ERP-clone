@@ -9,9 +9,5 @@ CREATE TABLE Students (
     residence_address TEXT,
     join_date DATE,
     department_id INT,
-    discipline_id TEXT,
-
-    FOREIGN KEY (student_id) REFERENCES Users(user_id),
-    FOREIGN KEY (department_id) REFERENCES Departments(dept_id),
-    FOREIGN KEY (discipline_id) REFERENCES Discipline(discipline_id)
+    discipline_id TEXT
 );
