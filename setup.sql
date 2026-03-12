@@ -25,3 +25,5 @@ CREATE DATABASE eims_db;
 \i schema/19_fee_remission_application.sql
 \i schema/20_supplementary_exam.sql
 \i schema/21_backlogs.sql
+\i schema/22_exams.sql
+\i schema/23_exam_seating.sql
