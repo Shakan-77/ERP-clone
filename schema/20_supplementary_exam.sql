@@ -4,7 +4,7 @@
 CREATE TABLE Supplementary_exams (
     student_id INT,
     course_offering_id INT,
-    price NUMERIC,
+    price NUMERIC CHECK (price >= 0),
 
     PRIMARY KEY(student_id, course_offering_id)
 );

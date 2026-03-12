@@ -5,5 +5,5 @@ CREATE TABLE Courses (
     course_id INT PRIMARY KEY,
     course_name TEXT,
     department_id INT,
-    credits INT
+    credits INT CHECK (credits > 0)
 );

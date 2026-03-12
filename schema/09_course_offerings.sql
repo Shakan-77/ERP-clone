@@ -8,5 +8,5 @@ CREATE TABLE Course_Offerings (
     year_offering INT
     semester INT,
     discipline_id TEXT,
-    capacity INT
+    capacity INT CHECK (capacity > 0)
 );

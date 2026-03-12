@@ -5,7 +5,7 @@ CREATE TABLE Scheduled_class (
     course_offering_id INT,
     start_time TIME,
     end_time TIME,
-    scheduled_day VARCHAR(10),
+    scheduled_day VARCHAR(10) CHECK (scheduled_day IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')),
     building_name TEXT,
     room_number INT,
 
