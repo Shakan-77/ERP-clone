@@ -1,6 +1,7 @@
 User(
     user_id (pk)
     password (should have atleast 1 capital letter, 1 alpha-numeric charecter and 1-special charecter)
+    Roles VARCHAR
 )
 
 Roles(

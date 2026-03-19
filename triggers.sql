@@ -79,10 +79,11 @@ BEGIN
 IF EXISTS (
     SELECT 1
     FROM Prerequisites p
-    WHERE p.main_course_id =
-        (SELECT course_id
-         FROM Course_Offerings
-         WHERE course_offering_id = NEW.course_offering_id)
+    WHERE p.main_course_id = (
+            SELECT course_id
+            FROM Course_Offerings
+            WHERE course_offering_id = NEW.course_offering_id
+        )
 
     AND NOT EXISTS (
         SELECT 1

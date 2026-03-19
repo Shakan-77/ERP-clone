@@ -27,6 +27,7 @@ CREATE DATABASE eims_db;
 \i schema/21_backlogs.sql
 \i schema/22_exams.sql
 \i schema/23_exam_seating.sql
+\i schema/24_balance.sql
 
 --Load constraint file
 \i schema/constraints.sql

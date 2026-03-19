@@ -292,3 +292,12 @@ ALTER TABLE Exam_Seating
 ADD CONSTRAINT fk_exam_seating_student
 FOREIGN KEY (student_id)
 REFERENCES Students(student_id);
+
+-- =============================
+-- BALANCE
+-- =============================
+
+ALTER TABLE Balance
+ADD CONSTRAINT fk_student_balance
+FOREIGN KEY (student_id)
+REFERENCES Students(student_id);
