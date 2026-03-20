@@ -12,15 +12,10 @@ Auto Create Backlog
 
 *Clearing backlogs
 
-*Prevent Grade modification after Finalization
-
 Check the remaining balance>-amount_paid
-
-*Delete the current exam records after the exam date
 
 Room capacity check
 
-Different access levels among user types
+Update Balance after fees update in discipline by admin
 
-*Delete a student from On_leave after the end_date
-
+Check if fee paid
