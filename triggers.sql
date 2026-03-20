@@ -135,6 +135,30 @@ AFTER INSERT ON Grades
 FOR EACH ROW
 EXECUTE FUNCTION create_backlog();
 
+-- Clearing Backlogs
+
+CREATE OR REPLACE FUNCTION remove_backlog_on_pass()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF OLD.grade = 'F' AND NEW.grade <> 'F' THEN
+
+        DELETE FROM Backlogs
+        WHERE student_id = NEW.student_id
+        AND course_id = NEW.course_id;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_remove_backlog
+AFTER UPDATE OF grade
+ON Grades
+FOR EACH ROW
+EXECUTE FUNCTION remove_backlog_on_pass();
+
 --Check remaining balance
 
 CREATE OR REPLACE FUNCTION check_fee_payment()
@@ -182,27 +206,6 @@ AFTER INSERT ON Fee_Payment
 FOR EACH ROW
 EXECUTE FUNCTION update_balance_after_payment();
 
--- Delete exam after exam_date
-
-CREATE OR REPLACE FUNCTION delete_expired_exam()
-RETURNS TRIGGER AS $$
-BEGIN
-
-IF NEW.date_of_exam < CURRENT_DATE THEN
-    DELETE FROM Exams
-    WHERE exam_id = NEW.exam_id;
-END IF;
-
-RETURN NEW;
-
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_delete_exam
-AFTER INSERT ON Exams
-FOR EACH ROW
-EXECUTE FUNCTION delete_expired_exam();
-
 -- Room capacity check
 
 CREATE OR REPLACE FUNCTION check_room_capacity()
@@ -235,23 +238,87 @@ BEFORE INSERT ON Exam_Seating
 FOR EACH ROW
 EXECUTE FUNCTION check_room_capacity();
 
--- Delete from On_Leave after leave end date
+--Update Balance after fees update in discipline by admin
 
-CREATE OR REPLACE FUNCTION remove_leave_student()
+CREATE OR REPLACE FUNCTION set_balance_from_discipline_fee()
 RETURNS TRIGGER AS $$
 BEGIN
+    UPDATE Balance b
+    SET remaining_balance = NEW.fees
+    FROM Students s
+    WHERE b.student_id = s.student_id
+    AND s.discipline_id = NEW.discipline_id;
 
-IF NEW.end_date < CURRENT_DATE THEN
-    DELETE FROM On_leave
-    WHERE student_id = NEW.student_id;
-END IF;
-
-RETURN NEW;
-
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_remove_leave
-AFTER UPDATE ON On_leave
+CREATE TRIGGER trg_set_balance_from_discipline
+AFTER UPDATE OF fees
+ON Discipline
 FOR EACH ROW
-EXECUTE FUNCTION remove_leave_student();
+EXECUTE FUNCTION set_balance_from_discipline_fee();
+
+-- Check if fee paid
+
+CREATE OR REPLACE FUNCTION check_fee_before_allotment()
+RETURNS TRIGGER AS $$
+DECLARE
+    due_balance INT;
+    deadline DATE;
+BEGIN
+    deadline := current_setting('myapp.fee_deadline', true)::DATE;
+
+    IF deadline IS NULL THEN
+        RETURN NEW;
+    END IF;
+    IF CURRENT_DATE > deadline THEN
+
+        SELECT remaining_balance
+        INTO due_balance
+        FROM Balance
+        WHERE student_id = NEW.student_id
+        AND semester = NEW.semester;
+
+        IF due_balance IS NULL THEN
+            due_balance := 0;
+        END IF;
+
+        IF due_balance > 0 THEN
+            RAISE EXCEPTION 'Student has pending fees. Cannot allot course.';
+        END IF;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_check_fee_before_allotment
+BEFORE INSERT ON Course_Allotted
+FOR EACH ROW
+EXECUTE FUNCTION check_fee_before_allotment();
+
+-- Function to move approved courses to Course_Allotted
+
+CREATE OR REPLACE FUNCTION move_to_allotted()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NEW.approved = TRUE THEN
+
+        INSERT INTO Course_Allotted (student_id, course_id, semester)
+        VALUES (NEW.student_id, NEW.course_id, NEW.semester);
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_move_to_allotted
+AFTER UPDATE OF approved
+ON Course_Registration
+FOR EACH ROW
+WHEN (NEW.approved = TRUE)
+EXECUTE FUNCTION move_to_allotted();

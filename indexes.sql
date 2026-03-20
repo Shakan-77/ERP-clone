@@ -162,3 +162,17 @@ ON Exam_Seating(exam_id);
 
 CREATE INDEX idx_exam_seating_student
 ON Exam_Seating(student_id);
+
+-- COURSE REGISTRATION
+
+CREATE INDEX idx_registration_student
+ON Course_Registration(student_id);
+
+CREATE INDEX idx_registration_course
+ON Course_Registration(course_id);
+
+CREATE INDEX idx_registration_approved
+ON Course_Registration(approved);
+
+CREATE INDEX idx_registration_student_sem
+ON Course_Registration(student_id, semester);

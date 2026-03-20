@@ -301,3 +301,27 @@ ALTER TABLE Balance
 ADD CONSTRAINT fk_student_balance
 FOREIGN KEY (student_id)
 REFERENCES Students(student_id);
+
+-- ==============================
+-- CONSTRAINTS FOR Course_Registration
+-- ==============================
+
+ALTER TABLE Course_Registration
+ADD CONSTRAINT fk_registration_student
+FOREIGN KEY (student_id)
+REFERENCES Students(student_id)
+ON DELETE CASCADE;
+
+ALTER TABLE Course_Registration
+ADD CONSTRAINT fk_registration_course
+FOREIGN KEY (course_id)
+REFERENCES Courses(course_id)
+ON DELETE CASCADE;
+
+ALTER TABLE Course_Registration
+ADD CONSTRAINT chk_selected_before_approval
+CHECK (approved = FALSE OR selected = TRUE);
+
+ALTER TABLE Course_Allotted
+ADD CONSTRAINT unique_allotment
+UNIQUE (student_id, course_id, semester);

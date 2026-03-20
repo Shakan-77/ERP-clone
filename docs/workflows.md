@@ -10,11 +10,22 @@ System checks:
 
 registration window open
 
+Eligible Courses (query/view)
+
 prerequisites satisfied
 
 course capacity
 
+Course_Registration (student selects)
+
+FA approval (update approved)
+
+Trigger fires
+
 duplicate enrollment
+
+Course_Allotted (final)
+
 
 ↓
 If valid → create enrollment
