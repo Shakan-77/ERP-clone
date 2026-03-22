@@ -105,7 +105,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_check_prerequisites
-BEFORE INSERT ON Course_Alloted
+BEFORE INSERT ON Course_Registration
 FOR EACH ROW
 EXECUTE FUNCTION check_prerequisites();
 
@@ -295,11 +295,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_check_fee_before_allotment
-BEFORE INSERT ON Course_Allotted
+BEFORE INSERT ON Course_Registration
 FOR EACH ROW
 EXECUTE FUNCTION check_fee_before_allotment();
 
--- Function to move approved courses to Course_Allotted
+--Move approved courses to Course_Allotted
 
 CREATE OR REPLACE FUNCTION move_to_allotted()
 RETURNS TRIGGER AS $$
