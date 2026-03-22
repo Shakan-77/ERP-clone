@@ -83,3 +83,17 @@ Submit feedback
 Stored in database
 ↓
 Admin / faculty view summaries
+
+FEE PAYMENT:
+
+Student login
+↓
+View fee details (total, paid, balance)
+↓
+Make payment
+↓
+Payment stored in Fee_Payment
+↓
+Balance updated
+↓
+Admin/Student can view status
