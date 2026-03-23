@@ -10,7 +10,7 @@ Prerequisite check during registration
 
 Auto Create Backlog
 
-*Clearing backlogs
+Clearing backlogs
 
 Check the remaining balance>-amount_paid
 
