@@ -139,3 +139,109 @@ BEGIN
 
 END;
 $$ LANGUAGE plpgsql;
+
+-- Insert into Exams
+
+CREATE OR REPLACE FUNCTION add_exam(
+    p_exam_id INT,
+    p_course_offering_id INT,
+    p_room_number VARCHAR,
+    p_building_name VARCHAR,
+    p_date DATE
+)
+RETURNS VOID AS $$
+BEGIN
+    IF p_date < CURRENT_DATE THEN
+        RAISE EXCEPTION 'Exam date cannot be in the past';
+    END IF;
+
+    INSERT INTO Exams(
+        exam_id,
+        course_offering_id,
+        room_number,
+        building_name,
+        date_of_exam
+    )
+    VALUES (
+        p_exam_id,
+        p_course_offering_id,
+        p_room_number,
+        p_building_name,
+        p_date
+    );
+
+END;
+$$ LANGUAGE plpgsql;
+
+-- Insert into Schedeuled Class
+
+CREATE OR REPLACE FUNCTION add_scheduled_class(
+    p_course_offering_id INT,
+    p_start_time TIME,
+    p_end_time TIME,
+    p_day VARCHAR,
+    p_building_name TEXT,
+    p_room_number INT
+)
+RETURNS VOID AS $$
+DECLARE
+    v_faculty_id INT;
+BEGIN
+
+    IF p_start_time >= p_end_time THEN
+        RAISE EXCEPTION 'Start time must be before end time';
+    END IF;
+
+    SELECT faculty_id
+    INTO v_faculty_id
+    FROM Course_Offerings
+    WHERE course_offering_id = p_course_offering_id;
+
+    IF EXISTS (
+        SELECT 1 FROM Scheduled_class sc
+        WHERE sc.scheduled_day = p_day
+          AND sc.building_name = p_building_name
+          AND sc.room_number = p_room_number
+          AND (
+                p_start_time < sc.end_time AND
+                p_end_time > sc.start_time
+              )
+    ) THEN
+        RAISE EXCEPTION 'Room already occupied in this time slot';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Scheduled_class sc
+        JOIN Course_Offerings co
+            ON sc.course_offering_id = co.course_offering_id
+        WHERE co.faculty_id = v_faculty_id
+          AND sc.scheduled_day = p_day
+          AND (
+                p_start_time < sc.end_time AND
+                p_end_time > sc.start_time
+              )
+    ) THEN
+        RAISE EXCEPTION 'Faculty has another class in this time slot';
+    END IF;
+
+    INSERT INTO Scheduled_class(
+        course_offering_id,
+        start_time,
+        end_time,
+        scheduled_day,
+        building_name,
+        room_number
+    )
+    VALUES (
+        p_course_offering_id,
+        p_start_time,
+        p_end_time,
+        p_day,
+        p_building_name,
+        p_room_number
+    );
+
+END;
+$$ LANGUAGE plpgsql;
+

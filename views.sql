@@ -214,3 +214,20 @@ AND NOT EXISTS (
     AND fb.course_offering_id = co.course_offering_id
 );
 
+-- Exam views for a student
+
+CREATE VIEW Student_Exam_View AS
+SELECT
+    es.student_id,
+    c.course_name,
+    e.date_of_exam,
+    e.building_name,
+    e.room_number
+FROM Exam_Seating es
+JOIN Exams e
+    ON es.exam_id = e.exam_id
+JOIN Course_Offerings co
+    ON e.course_offering_id = co.course_offering_id
+JOIN Courses c
+    ON co.course_id = c.course_id;
+

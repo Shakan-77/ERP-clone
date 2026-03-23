@@ -409,3 +409,24 @@ FOR EACH ROW
 WHEN (NEW.approved = TRUE)
 EXECUTE FUNCTION handle_course_approval();
 
+-- Auto-assign exam seating when a new record is inserted into Exams
+
+CREATE OR REPLACE FUNCTION generate_exam_seating()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    INSERT INTO Exam_Seating (exam_id, student_id)
+    SELECT
+        NEW.exam_id,
+        ca.student_id
+    FROM Course_Allotted ca
+    WHERE ca.course_offering_id = NEW.course_offering_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_generate_exam_seating
+AFTER INSERT ON Exams
+FOR EACH ROW
+EXECUTE FUNCTION generate_exam_seating();
