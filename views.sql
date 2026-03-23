@@ -71,14 +71,64 @@ JOIN Courses c
 
 --Current Semester Results
 
-CREATE VIEW Current_Semester_Results AS
-SELECT *
+CREATE OR REPLACE VIEW Current_Semester_Results AS
+SELECT 
+    sag.*,
+    r.cgpa,
+
+    -- SGPA calculation
+    (
+        SUM(
+            c.credits *
+            CASE g.grade
+                WHEN 'Ex' THEN 10
+                WHEN 'A' THEN 9
+                WHEN 'B' THEN 8
+                WHEN 'C' THEN 7
+                WHEN 'D' THEN 6
+                WHEN 'E' THEN 5
+                WHEN 'P' THEN 4
+                ELSE 0
+            END
+        )
+        /
+        NULLIF(
+            SUM(
+                CASE 
+                    WHEN g.grade <> 'F' THEN c.credits
+                    ELSE 0
+                END
+            ), 0
+        )
+    ) AS sgpa
+
 FROM Student_All_Semester_Grades sag
+
+JOIN Results r
+    ON sag.student_id = r.student_id
+
+JOIN Grades g
+    ON sag.student_id = g.student_id
+    AND sag.course_offering_id = g.course_offering_id
+
+JOIN Course_Offerings co
+    ON g.course_offering_id = co.course_offering_id
+    AND co.semester = sag.semester
+
+JOIN Courses c
+    ON co.course_id = c.course_id
+
 WHERE sag.semester = (
-    SELECT MAX(semester)
-    FROM Student_All_Semester_Grades
-    WHERE student_id = sag.student_id
-);
+    SELECT MAX(sag2.semester)
+    FROM Student_All_Semester_Grades sag2
+    WHERE sag2.student_id = sag.student_id
+)
+
+GROUP BY 
+    sag.student_id,
+    sag.course_offering_id,
+    sag.semester,
+    r.cgpa;
 
 --Fee Details
 
@@ -247,3 +297,24 @@ JOIN Course_Offerings co
 JOIN Courses c
     ON co.course_id = c.course_id;
 
+-- Show CDC Opportunities for a student
+
+CREATE VIEW Eligible_CDC_For_Student AS
+SELECT 
+    s.student_id,
+    c.cdc_id,
+    c.company_name,
+    c.apply_link,
+    c.job_type,
+    c.cgpa_cutoff
+FROM Students s
+
+JOIN Results r 
+    ON s.student_id = r.student_id
+
+JOIN CDC c 
+    ON r.cgpa >= c.cgpa_cutoff
+
+JOIN CDC_Eligible_Departments ced 
+    ON c.cdc_id = ced.cdc_id
+    AND ced.department_id = s.department_id;

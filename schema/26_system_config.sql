@@ -2,5 +2,6 @@
 
 CREATE TABLE System_Config (
     config_id INT PRIMARY KEY CHECK (config_id = 1),
-    registration_open_date DATE
+    registration_open_date DATE,
+    results_declaration_date DATE
 );

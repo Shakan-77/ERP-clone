@@ -284,7 +284,6 @@ BEGIN
           WHERE cr.student_id = s.student_id AND cr.course_id = co.course_id
       );
 
-    -- STEP 2: Bulk Register Backlogs
     INSERT INTO Course_Registration (student_id, course_id, semester)
     SELECT 
         b_log.student_id, 
@@ -314,7 +313,7 @@ RETURNS TRIGGER AS $$
 BEGIN
 
     IF NEW.registration_open_date <= CURRENT_DATE THEN
-        CALL bulk_register_students(NEW.semester); 
+        PERFORM bulk_register_students(NEW.semester); 
     END IF;
     
     RETURN NEW;
@@ -377,3 +376,156 @@ CREATE TRIGGER trg_generate_exam_seating
 AFTER INSERT ON Exams
 FOR EACH ROW
 EXECUTE FUNCTION generate_exam_seating();
+
+-- Update the Supplementary_exams table when a grade is updated to 'F' and delete when grade is updated from 'F' to a passing grade
+
+CREATE OR REPLACE FUNCTION handle_supplementary()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NEW.grade = 'F' THEN
+
+        INSERT INTO Supplementary_exams(
+            student_id,
+            course_offering_id,
+            price
+        )
+        VALUES (
+            NEW.student_id,
+            NEW.course_offering_id,
+            500
+        )
+        ON CONFLICT (student_id, course_offering_id)
+        DO NOTHING;
+
+    ELSIF OLD.grade = 'F' AND NEW.grade <> 'F' THEN
+
+        DELETE FROM Supplementary_exams
+        WHERE student_id = NEW.student_id
+        AND course_offering_id = NEW.course_offering_id;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_handle_supplementary
+AFTER INSERT OR UPDATE ON Grades
+FOR EACH ROW
+EXECUTE FUNCTION handle_supplementary();
+
+-- Delete from Supplementary_exams at registration time
+
+CREATE OR REPLACE FUNCTION clear_supplementary_on_reg_open()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NEW.registration_open_date IS NOT NULL
+    AND NEW.registration_open_date <> OLD.registration_open_date THEN
+
+        DELETE FROM Supplementary_exams;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_clear_supplementary
+AFTER UPDATE OF registration_open_date
+ON System_Config
+FOR EACH ROW
+EXECUTE FUNCTION clear_supplementary_on_reg_open();
+
+-- Update CGPA and total credits in Results table after grade upload(At results declaration date)
+
+CREATE OR REPLACE FUNCTION update_cgpa_all_students()
+RETURNS VOID AS $$
+BEGIN
+
+INSERT INTO Results (student_id, cgpa, total_credits)
+
+SELECT 
+    s.student_id,
+
+    (
+        (COALESCE(r.cgpa,0) * COALESCE(r.total_credits,0)) +
+        SUM(
+            c.credits *
+            CASE g.grade
+                WHEN 'Ex' THEN 10
+                WHEN 'A' THEN 9
+                WHEN 'B' THEN 8
+                WHEN 'C' THEN 7
+                WHEN 'D' THEN 6
+                WHEN 'E' THEN 5
+                WHEN 'P' THEN 4
+                ELSE 0
+            END
+        )
+    )
+    /
+    NULLIF(
+        COALESCE(r.total_credits,0) +
+        SUM(
+            CASE 
+                WHEN g.grade <> 'F' THEN c.credits
+                ELSE 0
+            END
+        ), 0
+    ) AS cgpa,
+
+    COALESCE(r.total_credits,0) +
+    SUM(
+        CASE 
+            WHEN g.grade <> 'F' THEN c.credits
+            ELSE 0
+        END
+    ) AS total_credits
+
+FROM Students s
+
+LEFT JOIN Results r 
+    ON s.student_id = r.student_id
+
+JOIN Grades g 
+    ON s.student_id = g.student_id
+
+JOIN Course_Offerings co 
+    ON g.course_offering_id = co.course_offering_id
+    AND co.semester = s.semester
+
+JOIN Courses c 
+    ON co.course_id = c.course_id
+
+GROUP BY s.student_id, r.cgpa, r.total_credits
+
+ON CONFLICT (student_id)
+DO UPDATE SET
+    cgpa = EXCLUDED.cgpa,
+    total_credits = EXCLUDED.total_credits;
+
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION trigger_results_declared()
+RETURNS TRIGGER AS $$
+BEGIN
+
+IF NEW.results_declaration_date IS NOT NULL
+   AND NEW.results_declaration_date <> OLD.results_declaration_date THEN
+
+    PERFORM update_cgpa_all_students();
+
+END IF;
+
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_results_declared
+AFTER UPDATE OF results_declaration_date
+ON System_Config
+FOR EACH ROW
+EXECUTE FUNCTION trigger_results_declared();
