@@ -8,6 +8,7 @@ CREATE TABLE Students (
     personal_email TEXT,
     residence_address TEXT,
     join_date DATE,
+    semester INT,
     department_id INT,
     discipline_id TEXT
 );

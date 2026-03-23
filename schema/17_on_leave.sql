@@ -7,5 +7,5 @@ CREATE TABLE On_leave (
     end_date DATE,
     request_id INT,
 
-    PRIMARY KEY(student_id, start_date)
+    PRIMARY KEY(request_id)
 );

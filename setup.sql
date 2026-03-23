@@ -28,6 +28,8 @@ CREATE DATABASE eims_db;
 \i schema/22_exams.sql
 \i schema/23_exam_seating.sql
 \i schema/24_balance.sql
+\i schema/25_course_registration.sql
+\i schema/26_system_config.sql
 
 --Load constraint file
 \i schema/constraints.sql

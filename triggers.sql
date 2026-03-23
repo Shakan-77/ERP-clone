@@ -1,3 +1,25 @@
+-- Update semester for all students at the end of each semester
+
+CREATE OR REPLACE FUNCTION update_semester()
+RETURNS TRIGGER AS $$
+DECLARE
+    months_diff INT;
+BEGIN
+
+    months_diff := EXTRACT(YEAR FROM AGE(CURRENT_DATE, NEW.join_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, NEW.join_date));
+
+    NEW.semester := (months_diff / 6) + 1;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_update_semester
+BEFORE INSERT OR UPDATE OF join_date
+ON Students
+FOR EACH ROW
+EXECUTE FUNCTION update_semester();
+
 --When Leave_Approval approved, Add to On_Leave
 
 CREATE OR REPLACE FUNCTION add_student_on_leave()
@@ -105,7 +127,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_check_prerequisites
-BEFORE INSERT ON Course_Alloted
+BEFORE INSERT ON Course_Registration
 FOR EACH ROW
 EXECUTE FUNCTION check_prerequisites();
 
@@ -259,34 +281,91 @@ ON Discipline
 FOR EACH ROW
 EXECUTE FUNCTION set_balance_from_discipline_fee();
 
--- Check if fee paid
+-- Insert into Course Registration when Registration Window Opens
 
-CREATE OR REPLACE FUNCTION check_fee_before_allotment()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION generate_registration_courses(p_student_id INT, p_semester INT)
+RETURNS VOID AS $$
 DECLARE
     due_balance INT;
-    deadline DATE;
+    stud_discipline INT;
+    stud_department INT;
 BEGIN
-    deadline := current_setting('myapp.fee_deadline', true)::DATE;
 
-    IF deadline IS NULL THEN
-        RETURN NEW;
+    SELECT discipline_id, department_id
+    INTO stud_discipline, stud_department
+    FROM Students
+    WHERE student_id = p_student_id;
+
+    SELECT remaining_balance
+    INTO due_balance
+    FROM Balance
+    WHERE student_id = p_student_id;
+
+    IF due_balance IS NULL THEN
+        due_balance := 0;
     END IF;
-    IF CURRENT_DATE > deadline THEN
 
-        SELECT remaining_balance
-        INTO due_balance
-        FROM Balance
-        WHERE student_id = NEW.student_id
-        AND semester = NEW.semester;
+    IF due_balance > 0 THEN
+        RAISE EXCEPTION 'Student has pending fees. Cannot register courses.';
+    END IF;
 
-        IF due_balance IS NULL THEN
-            due_balance := 0;
-        END IF;
+    INSERT INTO Course_Registration (student_id, course_id, semester)
+    SELECT
+        p_student_id,
+        co.course_id,
+        p_semester
+    FROM Course_Offerings co
+    JOIN Courses c
+        ON co.course_id = c.course_id
+    WHERE co.semester = p_semester
+      AND co.year_offering = EXTRACT(YEAR FROM CURRENT_DATE)
+      AND co.discipline_id = stud_discipline
+      AND c.department_id = stud_department   
+      AND NOT EXISTS (
+        SELECT 1 FROM Course_Registration cr
+        WHERE cr.student_id = p_student_id
+        AND cr.course_id = co.course_id
+    );
 
-        IF due_balance > 0 THEN
-            RAISE EXCEPTION 'Student has pending fees. Cannot allot course.';
-        END IF;
+    INSERT INTO Course_Registration (student_id, course_id, semester)
+    SELECT
+        p_student_id,
+        b.course_id,
+        p_semester
+    FROM Backlogs b
+    JOIN Courses c
+        ON b.course_id = c.course_id
+    WHERE b.student_id = p_student_id
+      AND c.department_id = stud_department
+      AND EXISTS (
+          SELECT 1 FROM Course_Offerings co
+          WHERE co.course_id = b.course_id
+            AND co.semester = p_semester
+            AND co.year_offering = EXTRACT(YEAR FROM CURRENT_DATE)
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM Course_Registration cr
+        WHERE cr.student_id = p_student_id
+        AND cr.course_id = b.course_id
+    );
+
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION trigger_generate_registrations()
+RETURNS TRIGGER AS $$
+DECLARE
+    rec RECORD;
+BEGIN
+
+    IF NEW.registration_open_date IS NOT NULL
+       AND CURRENT_DATE >= NEW.registration_open_date THEN
+
+        FOR rec IN SELECT student_id, semester FROM Students LOOP
+
+            PERFORM generate_registration_courses(rec.student_id, rec.semester);
+
+        END LOOP;
 
     END IF;
 
@@ -294,14 +373,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_check_fee_before_allotment
-BEFORE INSERT ON Course_Allotted
+CREATE TRIGGER trg_registration_open
+AFTER INSERT OR UPDATE OF registration_open_date
+ON System_Config
 FOR EACH ROW
-EXECUTE FUNCTION check_fee_before_allotment();
+EXECUTE FUNCTION trigger_generate_registrations();
 
--- Function to move approved courses to Course_Allotted
 
-CREATE OR REPLACE FUNCTION move_to_allotted()
+--Move approved courses to Course_Allotted and remove from Course_Registration
+
+CREATE OR REPLACE FUNCTION handle_course_approval()
 RETURNS TRIGGER AS $$
 BEGIN
 
@@ -310,15 +391,21 @@ BEGIN
         INSERT INTO Course_Allotted (student_id, course_id, semester)
         VALUES (NEW.student_id, NEW.course_id, NEW.semester);
 
+        DELETE FROM Course_Registration
+        WHERE student_id = NEW.student_id
+          AND course_id = NEW.course_id
+          AND semester = NEW.semester;
+
     END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_move_to_allotted
+CREATE TRIGGER trg_handle_approval
 AFTER UPDATE OF approved
 ON Course_Registration
 FOR EACH ROW
 WHEN (NEW.approved = TRUE)
-EXECUTE FUNCTION move_to_allotted();
+EXECUTE FUNCTION handle_course_approval();
+
