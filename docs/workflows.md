@@ -14,11 +14,11 @@ Eligible Courses (query/view)
 
 prerequisites satisfied
 
-course capacity
-
 Course_Registration (student selects)
 
 FA approval (update approved)
+
+course capacity
 
 Trigger fires
 
@@ -56,6 +56,7 @@ Faculty approves / rejects
 ↓
 Status updated
 
+*SUPPLEMENTARY_EXAMS:
 
 GRADE SUBMISSION:
 

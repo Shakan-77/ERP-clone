@@ -2,8 +2,6 @@
 
 When Leave_Approval approved, Add to On_Leave
 
-Prevent Duplicate Attendance
-
 Course Capacity Check
 
 Prerequisite check during registration

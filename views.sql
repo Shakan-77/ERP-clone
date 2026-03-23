@@ -18,7 +18,6 @@ JOIN Courses c
 JOIN Faculty f
     ON co.faculty_id = f.faculty_id;
 
-
 -- Student_Registered_Courses(after Registration)
 
 CREATE VIEW Student_Course_View AS
@@ -81,6 +80,37 @@ WHERE sag.semester = (
     WHERE student_id = sag.student_id
 );
 
+--Fee Details
+
+CREATE OR REPLACE VIEW Student_Fee_Status AS
+SELECT 
+    s.student_id,
+    s.college_email,
+    d.discipline_id,
+    d.fees AS total_program_fee,
+    (d.fees - b.remaining_balance) AS amount_paid, 
+    b.remaining_balance
+FROM Students s
+JOIN Discipline d ON s.discipline_id = d.discipline_id
+JOIN Balance b ON s.student_id = b.student_id;
+
+--Fee payment history
+
+CREATE OR REPLACE VIEW Student_Payment_History AS
+SELECT 
+    fp.payment_id,
+    fp.student_id,
+    s.college_email,
+    fp.semester,
+    fp.amount_paid,
+    fp.payment_date,
+    d.discipline_id,
+    b.remaining_balance
+FROM Fee_Payment fp
+JOIN Students s ON fp.student_id = s.student_id
+JOIN Discipline d ON s.discipline_id = d.discipline_id
+JOIN Balance b ON s.student_id = b.student_id
+ORDER BY fp.payment_date DESC;
 
 --Supplementary exam Registrations
 
@@ -188,31 +218,17 @@ JOIN Students s
 
 -- Feedback views
 
-CREATE VIEW Student_Feedback_Pending AS
-SELECT
-    ca.student_id,
-    co.course_offering_id,
-    c.course_id,
+CREATE OR REPLACE VIEW view_faculty_feedback_comments AS
+SELECT 
+    co.faculty_id,
+    c.course_code,
     c.course_name,
     co.semester,
-    f.faculty_name
-FROM Course_Allotted ca
-JOIN Course_Offerings co
-    ON ca.course_offering_id = co.course_offering_id
-JOIN Courses c
-    ON co.course_id = c.course_id
-JOIN Faculty f
-    ON co.faculty_id = f.faculty_id
-WHERE co.semester = (
-    SELECT semester 
-    FROM Students s 
-    WHERE s.student_id = ca.student_id
-)
-AND NOT EXISTS (
-    SELECT 1 FROM Feedback fb
-    WHERE fb.student_id = ca.student_id
-    AND fb.course_offering_id = co.course_offering_id
-);
+    co.year_offering,
+    fb.feedback -- Using the column name from your image
+FROM Feedback fb
+JOIN Course_Offerings co ON fb.course_offering_id = co.course_offering_id
+JOIN Courses c ON co.course_id = c.course_id;
 
 -- Exam views for a student
 

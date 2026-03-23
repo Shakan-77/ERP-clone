@@ -39,29 +39,6 @@ AFTER UPDATE ON Leave_Requests
 FOR EACH ROW
 EXECUTE FUNCTION add_student_on_leave();
 
--- Prevent Duplicate Attendance
-
-CREATE OR REPLACE FUNCTION prevent_duplicate_attendance()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM Attendance
-        WHERE student_id = NEW.student_id
-        AND course_offering_id = NEW.course_offering_id
-        AND date = NEW.date
-    ) THEN
-        RAISE EXCEPTION 'Duplicate attendance record';
-    END IF;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_prevent_duplicate_attendance
-BEFORE INSERT ON Attendance
-FOR EACH ROW
-EXECUTE FUNCTION prevent_duplicate_attendance();
-
 --Course Capacity Check
 
 CREATE OR REPLACE FUNCTION check_course_capacity()
@@ -283,92 +260,63 @@ EXECUTE FUNCTION set_balance_from_discipline_fee();
 
 -- Insert into Course Registration when Registration Window Opens
 
-CREATE OR REPLACE FUNCTION generate_registration_courses(p_student_id INT, p_semester INT)
-RETURNS VOID AS $$
+CREATE OR REPLACE PROCEDURE bulk_register_students(p_semester INT)
+LANGUAGE plpgsql
+AS $$
 DECLARE
-    due_balance INT;
-    stud_discipline INT;
-    stud_department INT;
+    current_year INT := EXTRACT(YEAR FROM CURRENT_DATE);
 BEGIN
 
-    SELECT discipline_id, department_id
-    INTO stud_discipline, stud_department
-    FROM Students
-    WHERE student_id = p_student_id;
-
-    SELECT remaining_balance
-    INTO due_balance
-    FROM Balance
-    WHERE student_id = p_student_id;
-
-    IF due_balance IS NULL THEN
-        due_balance := 0;
-    END IF;
-
-    IF due_balance > 0 THEN
-        RAISE EXCEPTION 'Student has pending fees. Cannot register courses.';
-    END IF;
-
     INSERT INTO Course_Registration (student_id, course_id, semester)
-    SELECT
-        p_student_id,
-        co.course_id,
+    SELECT 
+        s.student_id, 
+        co.course_id, 
         p_semester
-    FROM Course_Offerings co
-    JOIN Courses c
-        ON co.course_id = c.course_id
-    WHERE co.semester = p_semester
-      AND co.year_offering = EXTRACT(YEAR FROM CURRENT_DATE)
-      AND co.discipline_id = stud_discipline
-      AND c.department_id = stud_department   
+    FROM Students s
+    LEFT JOIN Balance b ON s.student_id = b.student_id
+    JOIN Course_Offerings co ON s.discipline_id = co.discipline_id
+    JOIN Courses c ON co.course_id = c.course_id AND s.department_id = c.department_id
+    WHERE (b.remaining_balance IS NULL OR b.remaining_balance <= 0)
+      AND co.semester = p_semester
+      AND co.year_offering = current_year
       AND NOT EXISTS (
-        SELECT 1 FROM Course_Registration cr
-        WHERE cr.student_id = p_student_id
-        AND cr.course_id = co.course_id
-    );
+          SELECT 1 FROM Course_Registration cr 
+          WHERE cr.student_id = s.student_id AND cr.course_id = co.course_id
+      );
 
+    -- STEP 2: Bulk Register Backlogs
     INSERT INTO Course_Registration (student_id, course_id, semester)
-    SELECT
-        p_student_id,
-        b.course_id,
+    SELECT 
+        b_log.student_id, 
+        b_log.course_id, 
         p_semester
-    FROM Backlogs b
-    JOIN Courses c
-        ON b.course_id = c.course_id
-    WHERE b.student_id = p_student_id
-      AND c.department_id = stud_department
+    FROM Backlogs b_log
+    JOIN Students s ON b_log.student_id = s.student_id
+    LEFT JOIN Balance b ON s.student_id = b.student_id
+    JOIN Courses c ON b_log.course_id = c.course_id AND s.department_id = c.department_id
+    WHERE (b.remaining_balance IS NULL OR b.remaining_balance <= 0)
       AND EXISTS (
-          SELECT 1 FROM Course_Offerings co
-          WHERE co.course_id = b.course_id
-            AND co.semester = p_semester
-            AND co.year_offering = EXTRACT(YEAR FROM CURRENT_DATE)
+          SELECT 1 FROM Course_Offerings co 
+          WHERE co.course_id = b_log.course_id 
+            AND co.semester = p_semester 
+            AND co.year_offering = current_year
       )
       AND NOT EXISTS (
-        SELECT 1 FROM Course_Registration cr
-        WHERE cr.student_id = p_student_id
-        AND cr.course_id = b.course_id
-    );
+          SELECT 1 FROM Course_Registration cr 
+          WHERE cr.student_id = s.student_id AND cr.course_id = b_log.course_id
+      );
 
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-CREATE OR REPLACE FUNCTION trigger_generate_registrations()
+CREATE OR REPLACE FUNCTION trigger_registration_open()
 RETURNS TRIGGER AS $$
-DECLARE
-    rec RECORD;
 BEGIN
 
-    IF NEW.registration_open_date IS NOT NULL
-       AND CURRENT_DATE >= NEW.registration_open_date THEN
-
-        FOR rec IN SELECT student_id, semester FROM Students LOOP
-
-            PERFORM generate_registration_courses(rec.student_id, rec.semester);
-
-        END LOOP;
-
+    IF NEW.registration_open_date <= CURRENT_DATE THEN
+        CALL bulk_register_students(NEW.semester); 
     END IF;
-
+    
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -378,7 +326,6 @@ AFTER INSERT OR UPDATE OF registration_open_date
 ON System_Config
 FOR EACH ROW
 EXECUTE FUNCTION trigger_generate_registrations();
-
 
 --Move approved courses to Course_Allotted and remove from Course_Registration
 

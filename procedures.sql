@@ -1,35 +1,43 @@
 -- Update Attendance status
 
-CREATE OR REPLACE FUNCTION mark_attendance(
-    p_student_id INT,
-    p_course_offering_id INT,
-    p_class_date DATE,
-    p_status TEXT
+CREATE OR REPLACE PROCEDURE mark_attendance(
+    p_offering_id INT,
+    p_date DATE,
+    p_present_student_ids INT[]
 )
-RETURNS VOID AS $$
-DECLARE
-    is_on_leave BOOLEAN;
+LANGUAGE plpgsql
+AS $$
 BEGIN
 
-    SELECT EXISTS (
-        SELECT 1
-        FROM On_Leave ol
-        WHERE ol.student_id = p_student_id
-          AND p_class_date BETWEEN ol.start_date AND ol.end_date
-    )
-    INTO is_on_leave;
+    DELETE FROM Attendance 
+    WHERE course_offering_id = p_offering_id 
+      AND class_date = p_date;
 
-    IF is_on_leave THEN
-        p_status := 'On_Leave';
-    END IF;
+    INSERT INTO Attendance (student_id, course_offering_id, class_date, status)
+    SELECT 
+        unnest(p_present_student_ids), 
+        p_offering_id, 
+        p_date, 
+        'Present';
 
-    INSERT INTO Attendance(student_id, course_offering_id, class_date, status)
-    VALUES (p_student_id, p_course_offering_id, p_class_date, p_status)
-    ON CONFLICT (student_id, course_offering_id, class_date)
-    DO UPDATE SET status = EXCLUDED.status;
+    INSERT INTO Attendance (student_id, course_offering_id, class_date, status)
+    SELECT 
+        cr.student_id, 
+        p_offering_id, 
+        p_date,
+        CASE 
+            WHEN ol.student_id IS NOT NULL THEN 'On_Leave'
+            ELSE 'Absent'
+        END
+    FROM Course_Allotted ca
+    LEFT JOIN on_leave ol ON cr.student_id = ol.student_id 
+        AND p_date BETWEEN ol.leave_start_date AND ol.leave_end_date
+    WHERE ca.course_offering_id = p_offering_id
+      AND NOT (ca.student_id = ANY(p_present_student_ids));
 
+    COMMIT;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Update Leave Requests
 
