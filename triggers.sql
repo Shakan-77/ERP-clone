@@ -142,9 +142,11 @@ BEGIN
 
     IF OLD.grade = 'F' AND NEW.grade <> 'F' THEN
 
-        DELETE FROM Backlogs
-        WHERE student_id = NEW.student_id
-        AND course_id = NEW.course_id;
+        DELETE FROM Backlogs b
+        USING Course_Offerings co
+        WHERE b.student_id = NEW.student_id
+        AND co.course_offering_id = NEW.course_offering_id
+        AND b.course_id = co.course_id;
 
     END IF;
 
@@ -332,12 +334,12 @@ CREATE OR REPLACE FUNCTION handle_course_approval()
 RETURNS TRIGGER AS $$
 BEGIN
 
-    INSERT INTO Course_Alloted (student_id, course_offering_id)
+    INSERT INTO Course_Allotted (student_id, course_offering_id)
     VALUES (NEW.student_id, NEW.course_offering_id);
 
     DELETE FROM Course_Registration
     WHERE student_id = NEW.student_id
-      AND course_offering_id = NEW.course_offering_id;
+    AND course_offering_id = NEW.course_offering_id;
 
     RETURN NEW;
 END;
