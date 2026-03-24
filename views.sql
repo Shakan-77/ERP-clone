@@ -29,7 +29,7 @@ SELECT
     co.semester,
     f.faculty_id,
     f.faculty_name
-FROM Course_Alloted ca
+FROM Course_Allotted ca
 JOIN Course_Offerings co
     ON ca.course_offering_id = co.course_offering_id
 JOIN Courses c
@@ -236,7 +236,7 @@ SELECT
     ca.student_id,
     co.course_offering_id,
     c.course_name
-FROM Course_Alloted ca
+FROM Course_Allotted ca
 JOIN Course_Offerings co
     ON ca.course_offering_id = co.course_offering_id
 JOIN Courses c

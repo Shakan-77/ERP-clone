@@ -58,10 +58,10 @@ ON Course_Offerings(discipline_id);
 -- COURSE ALLOTTED
 
 CREATE INDEX idx_alloted_student
-ON Course_Alloted(student_id);
+ON Course_Allotted(student_id);
 
 CREATE INDEX idx_alloted_offering
-ON Course_Alloted(course_offering_id);
+ON Course_Allotted(course_offering_id);
 
 
 -- ATTENDANCE

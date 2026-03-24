@@ -22,7 +22,7 @@ BEGIN
 
     INSERT INTO Attendance (student_id, course_offering_id, class_date, status)
     SELECT 
-        cr.student_id, 
+        ca.student_id, 
         p_offering_id, 
         p_date,
         CASE 

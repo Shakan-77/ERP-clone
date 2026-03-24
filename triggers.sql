@@ -53,7 +53,7 @@ BEGIN
     WHERE course_offering_id = NEW.course_offering_id;
 
     SELECT COUNT(*) INTO current_count
-    FROM Course_Alloted
+    FROM Course_Allotted
     WHERE course_offering_id = NEW.course_offering_id;
 
     IF current_count >= max_capacity THEN
@@ -65,7 +65,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_course_capacity
-BEFORE INSERT ON Course_Alloted
+BEFORE INSERT ON Course_Allotted
 FOR EACH ROW
 EXECUTE FUNCTION check_course_capacity();
 
@@ -308,7 +308,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION trigger_registration_open()
+CREATE OR REPLACE FUNCTION trg_registration_open()
 RETURNS TRIGGER AS $$
 BEGIN
 
@@ -328,7 +328,7 @@ EXECUTE FUNCTION trigger_generate_registrations();
 
 --Move approved courses to Course_Allotted and remove from Course_Registration
 
-CREATE OR REPLACE FUNCTION handle_course_approval()
+CREATE OR REPLACE FUNCTION trg_handle_approval()
 RETURNS TRIGGER AS $$
 BEGIN
 
