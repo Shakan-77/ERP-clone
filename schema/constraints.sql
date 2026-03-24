@@ -325,3 +325,40 @@ CHECK (approved = FALSE OR selected = TRUE);
 ALTER TABLE Course_Allotted
 ADD CONSTRAINT unique_allotment
 UNIQUE (student_id, course_id, semester);
+
+-- ==============================
+-- CONSTRAINTS FOR Results
+-- ==============================
+
+ALTER TABLE Results
+ADD CONSTRAINT fk_results_student
+FOREIGN KEY (student_id)
+REFERENCES Students(student_id);
+
+-- ==============================
+-- CONSTRAINTS FOR CDC ELIGIBLE DEPARTMENTS
+-- ==============================
+
+ALTER TABLE CDC_Eligible_Departments
+ADD CONSTRAINT fk_cdc_dept_cdc
+FOREIGN KEY (cdc_id)
+REFERENCES CDC(cdc_id);
+
+ALTER TABLE CDC_Eligible_Departments
+ADD CONSTRAINT fk_cdc_dept_department
+FOREIGN KEY (department_id)
+REFERENCES Departments(dept_id);
+
+-- ==============================
+-- CONSTRAINTS FOR CDC Applications
+-- ==============================
+
+ALTER TABLE CDC_Applications
+ADD CONSTRAINT fk_cdc_app_student
+FOREIGN KEY (student_id)
+REFERENCES Students(student_id);
+
+ALTER TABLE CDC_Applications
+ADD CONSTRAINT fk_cdc_app_cdc
+FOREIGN KEY (cdc_id)
+REFERENCES CDC(cdc_id);

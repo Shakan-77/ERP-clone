@@ -324,31 +324,26 @@ CREATE TRIGGER trg_registration_open
 AFTER INSERT OR UPDATE OF registration_open_date
 ON System_Config
 FOR EACH ROW
-EXECUTE FUNCTION trigger_generate_registrations();
+EXECUTE FUNCTION trg_registration_open();
 
 --Move approved courses to Course_Allotted and remove from Course_Registration
 
-CREATE OR REPLACE FUNCTION trg_handle_approval()
+CREATE OR REPLACE FUNCTION handle_course_approval()
 RETURNS TRIGGER AS $$
 BEGIN
 
-    IF NEW.approved = TRUE THEN
+    INSERT INTO Course_Alloted (student_id, course_offering_id)
+    VALUES (NEW.student_id, NEW.course_offering_id);
 
-        INSERT INTO Course_Allotted (student_id, course_id, semester)
-        VALUES (NEW.student_id, NEW.course_id, NEW.semester);
-
-        DELETE FROM Course_Registration
-        WHERE student_id = NEW.student_id
-          AND course_id = NEW.course_id
-          AND semester = NEW.semester;
-
-    END IF;
+    DELETE FROM Course_Registration
+    WHERE student_id = NEW.student_id
+      AND course_offering_id = NEW.course_offering_id;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_handle_approval
+CREATE TRIGGER trg_course_approval
 AFTER UPDATE OF approved
 ON Course_Registration
 FOR EACH ROW

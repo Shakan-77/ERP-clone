@@ -71,64 +71,43 @@ JOIN Courses c
 
 --Current Semester Results
 
-CREATE OR REPLACE VIEW Current_Semester_Results AS
+CREATE VIEW Student_SGPA AS
 SELECT 
-    sag.*,
-    r.cgpa,
+    g.student_id,
+    co.semester,
 
-    -- SGPA calculation
-    (
+    SUM(
+        c.credits *
+        CASE g.grade
+            WHEN 'Ex' THEN 10
+            WHEN 'A' THEN 9
+            WHEN 'B' THEN 8
+            WHEN 'C' THEN 7
+            WHEN 'D' THEN 6
+            WHEN 'E' THEN 5
+            WHEN 'P' THEN 4
+            ELSE 0
+        END
+    )
+    /
+    NULLIF(
         SUM(
-            c.credits *
-            CASE g.grade
-                WHEN 'Ex' THEN 10
-                WHEN 'A' THEN 9
-                WHEN 'B' THEN 8
-                WHEN 'C' THEN 7
-                WHEN 'D' THEN 6
-                WHEN 'E' THEN 5
-                WHEN 'P' THEN 4
+            CASE 
+                WHEN g.grade <> 'F' THEN c.credits
                 ELSE 0
             END
-        )
-        /
-        NULLIF(
-            SUM(
-                CASE 
-                    WHEN g.grade <> 'F' THEN c.credits
-                    ELSE 0
-                END
-            ), 0
-        )
+        ), 0
     ) AS sgpa
 
-FROM Student_All_Semester_Grades sag
-
-JOIN Results r
-    ON sag.student_id = r.student_id
-
-JOIN Grades g
-    ON sag.student_id = g.student_id
-    AND sag.course_offering_id = g.course_offering_id
-
-JOIN Course_Offerings co
+FROM Grades g
+JOIN Course_Offerings co 
     ON g.course_offering_id = co.course_offering_id
-    AND co.semester = sag.semester
-
-JOIN Courses c
+JOIN Courses c 
     ON co.course_id = c.course_id
 
-WHERE sag.semester = (
-    SELECT MAX(sag2.semester)
-    FROM Student_All_Semester_Grades sag2
-    WHERE sag2.student_id = sag.student_id
-)
+GROUP BY g.student_id, co.semester;
 
-GROUP BY 
-    sag.student_id,
-    sag.course_offering_id,
-    sag.semester,
-    r.cgpa;
+
 
 --Fee Details
 

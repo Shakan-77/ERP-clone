@@ -20,7 +20,6 @@ CREATE TABLE CDC_Applications (
 
     offer_details TEXT,
 
-    PRIMARY KEY (student_id, cdc_id),
+    PRIMARY KEY (student_id, cdc_id)
 
-    FOREIGN KEY (cdc_id) REFERENCES CDC(cdc_id)
 );

@@ -3,7 +3,5 @@
 CREATE TABLE Results (
     student_id INT PRIMARY KEY,
     cgpa NUMERIC(3,2) CHECK (cgpa BETWEEN 0 AND 10),
-    total_credits INT CHECK (total_credits >= 0),
-
-    FOREIGN KEY (student_id) REFERENCES Students(student_id)
+    total_credits INT CHECK (total_credits >= 0)
 );

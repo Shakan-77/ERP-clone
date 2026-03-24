@@ -252,3 +252,31 @@ BEGIN
 
 END;
 $$ LANGUAGE plpgsql;
+
+-- Insert into Fee_Remission_Applications
+
+CREATE OR REPLACE FUNCTION apply_fee_remission(p_student_id INT)
+RETURNS VOID AS $$
+BEGIN
+
+IF EXISTS (
+    SELECT 1 
+    FROM Fee_Remission_Application
+    WHERE student_id = p_student_id
+) THEN
+    RAISE EXCEPTION 'You have already applied for fee remission';
+END IF;
+
+INSERT INTO Fee_Remission_Application (
+    application_id,
+    student_id,
+    status
+)
+VALUES (
+    nextval('fee_remission_application_seq'),
+    p_student_id,
+    'Pending'
+);
+
+END;
+$$ LANGUAGE plpgsql;

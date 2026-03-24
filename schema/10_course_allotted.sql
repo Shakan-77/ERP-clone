@@ -1,7 +1,7 @@
 -- Course Allotted table
 -- Stores course enrollment and marks
 
-CREATE TABLE Course_Alloted (
+CREATE TABLE Course_Allotted (
     student_id INT,
     course_offering_id INT,
     mid_sem_marks INT,

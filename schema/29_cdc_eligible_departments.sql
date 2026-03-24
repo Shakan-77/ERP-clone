@@ -4,6 +4,5 @@ CREATE TABLE CDC_Eligible_Departments (
     cdc_id INT,
     department_id INT,
 
-    PRIMARY KEY (cdc_id, department_id),
-    FOREIGN KEY (cdc_id) REFERENCES CDC(cdc_id)
+    PRIMARY KEY (cdc_id, department_id)
 );

@@ -2,7 +2,7 @@
 
 CREATE TABLE Course_Registration (
     student_id INT,
-    course_id TEXT,
+    course_id INT,
     semester INT,
     selected BOOLEAN DEFAULT TRUE,
     approved BOOLEAN DEFAULT FALSE,
