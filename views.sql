@@ -250,11 +250,11 @@ JOIN Students s
 CREATE OR REPLACE VIEW view_faculty_feedback_comments AS
 SELECT 
     co.faculty_id,
-    c.course_code,
+    c.course_id,
     c.course_name,
     co.semester,
     co.year_offering,
-    fb.feedback -- Using the column name from your image
+    fb.feedback 
 FROM Feedback fb
 JOIN Course_Offerings co ON fb.course_offering_id = co.course_offering_id
 JOIN Courses c ON co.course_id = c.course_id;
@@ -297,3 +297,12 @@ JOIN CDC c
 JOIN CDC_Eligible_Departments ced 
     ON c.cdc_id = ced.cdc_id
     AND ced.department_id = s.department_id;
+
+-- Show Student SGPA
+
+CREATE VIEW current_sem_sgpa AS
+SELECT s.*
+FROM Student_SGPA s
+JOIN Students st
+ON s.student_id = st.student_id
+WHERE s.semester = st.semester;

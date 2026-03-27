@@ -124,15 +124,17 @@ REFERENCES Discipline(discipline_id);
 -- COURSE ALLOTTED
 -- =============================
 
-ALTER TABLE Course_Alloted
-ADD CONSTRAINT fk_alloted_student
+ALTER TABLE Course_Allotted
+ADD CONSTRAINT fk_allotted_student
 FOREIGN KEY (student_id)
 REFERENCES Students(student_id);
 
-ALTER TABLE Course_Alloted
-ADD CONSTRAINT fk_alloted_course
+ALTER TABLE Course_Allotted
+ADD CONSTRAINT fk_allotted_course
 FOREIGN KEY (course_offering_id)
 REFERENCES Course_Offerings(course_offering_id);
+
+-- ❌ WRONG constraint removed (course_id, semester not present)
 
 
 -- =============================
@@ -163,6 +165,7 @@ ALTER TABLE Grades
 ADD CONSTRAINT fk_grades_offering
 FOREIGN KEY (course_offering_id)
 REFERENCES Course_Offerings(course_offering_id);
+
 
 -- =============================
 -- FEEDBACK
@@ -293,6 +296,7 @@ ADD CONSTRAINT fk_exam_seating_student
 FOREIGN KEY (student_id)
 REFERENCES Students(student_id);
 
+
 -- =============================
 -- BALANCE
 -- =============================
@@ -301,6 +305,7 @@ ALTER TABLE Balance
 ADD CONSTRAINT fk_student_balance
 FOREIGN KEY (student_id)
 REFERENCES Students(student_id);
+
 
 -- ==============================
 -- CONSTRAINTS FOR Course_Registration
@@ -322,9 +327,6 @@ ALTER TABLE Course_Registration
 ADD CONSTRAINT chk_selected_before_approval
 CHECK (approved = FALSE OR selected = TRUE);
 
-ALTER TABLE Course_Allotted
-ADD CONSTRAINT unique_allotment
-UNIQUE (student_id, course_id, semester);
 
 -- ==============================
 -- CONSTRAINTS FOR Results
@@ -334,6 +336,7 @@ ALTER TABLE Results
 ADD CONSTRAINT fk_results_student
 FOREIGN KEY (student_id)
 REFERENCES Students(student_id);
+
 
 -- ==============================
 -- CONSTRAINTS FOR CDC ELIGIBLE DEPARTMENTS
@@ -348,6 +351,7 @@ ALTER TABLE CDC_Eligible_Departments
 ADD CONSTRAINT fk_cdc_dept_department
 FOREIGN KEY (department_id)
 REFERENCES Departments(dept_id);
+
 
 -- ==============================
 -- CONSTRAINTS FOR CDC Applications
