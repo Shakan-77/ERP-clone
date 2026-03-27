@@ -3,6 +3,7 @@
 
 CREATE TABLE Students (
     student_id INT PRIMARY KEY,
+    student_name TEXT NOT NULL,
     contact_no VARCHAR(10),
     college_email TEXT,
     personal_email TEXT,

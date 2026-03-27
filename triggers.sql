@@ -527,3 +527,28 @@ AFTER UPDATE OF results_declaration_date
 ON System_Config
 FOR EACH ROW
 EXECUTE FUNCTION trigger_results_declared();
+
+-- Block course registration if registration window is closed
+
+CREATE OR REPLACE FUNCTION prevent_registration_after_close()
+RETURNS TRIGGER AS $$
+DECLARE
+    close_date DATE;
+BEGIN
+    SELECT registration_close_date
+    INTO close_date
+    FROM System_Config
+    WHERE config_id = 1;
+
+    IF CURRENT_DATE > close_date THEN
+        RAISE EXCEPTION 'Registration window closed ❌';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_registration
+BEFORE UPDATE ON Course_Registration
+FOR EACH ROW
+EXECUTE FUNCTION prevent_registration_after_close();
