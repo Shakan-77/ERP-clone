@@ -269,10 +269,11 @@ DECLARE
     current_year INT := EXTRACT(YEAR FROM CURRENT_DATE);
 BEGIN
 
-    INSERT INTO Course_Registration (student_id, course_id, semester)
+    -- Regular courses
+    INSERT INTO Course_Registration (student_id, course_offering_id, semester)
     SELECT 
         s.student_id, 
-        co.course_id, 
+        co.course_offering_id, 
         p_semester
     FROM Students s
     LEFT JOIN Balance b ON s.student_id = b.student_id
@@ -283,28 +284,28 @@ BEGIN
       AND co.year_offering = current_year
       AND NOT EXISTS (
           SELECT 1 FROM Course_Registration cr 
-          WHERE cr.student_id = s.student_id AND cr.course_id = co.course_id
+          WHERE cr.student_id = s.student_id 
+          AND cr.course_offering_id = co.course_offering_id
       );
 
-    INSERT INTO Course_Registration (student_id, course_id, semester)
+    -- Backlogs
+    INSERT INTO Course_Registration (student_id, course_offering_id, semester)
     SELECT 
         b_log.student_id, 
-        b_log.course_id, 
+        co.course_offering_id,
         p_semester
     FROM Backlogs b_log
     JOIN Students s ON b_log.student_id = s.student_id
     LEFT JOIN Balance b ON s.student_id = b.student_id
+    JOIN Course_Offerings co ON co.course_id = b_log.course_id
     JOIN Courses c ON b_log.course_id = c.course_id AND s.department_id = c.department_id
     WHERE (b.remaining_balance IS NULL OR b.remaining_balance <= 0)
-      AND EXISTS (
-          SELECT 1 FROM Course_Offerings co 
-          WHERE co.course_id = b_log.course_id 
-            AND co.semester = p_semester 
-            AND co.year_offering = current_year
-      )
+      AND co.semester = p_semester
+      AND co.year_offering = current_year
       AND NOT EXISTS (
           SELECT 1 FROM Course_Registration cr 
-          WHERE cr.student_id = s.student_id AND cr.course_id = b_log.course_id
+          WHERE cr.student_id = s.student_id 
+          AND cr.course_offering_id = co.course_offering_id
       );
 
 END;
@@ -315,7 +316,7 @@ RETURNS TRIGGER AS $$
 BEGIN
 
     IF NEW.registration_open_date <= CURRENT_DATE THEN
-        PERFORM bulk_register_students(NEW.semester); 
+        CALL bulk_register_students(NEW.semester); 
     END IF;
     
     RETURN NEW;
