@@ -280,3 +280,65 @@ VALUES (
 
 END;
 $$ LANGUAGE plpgsql;
+
+-- Insert into Scheduled_class by ADMIN
+
+CREATE OR REPLACE FUNCTION add_scheduled_class(
+    p_course_offering_id INT,
+    p_start_time TIME,
+    p_end_time TIME,
+    p_day VARCHAR,
+    p_building_name TEXT,
+    p_room_number INT
+)
+RETURNS VOID AS $$
+BEGIN
+
+IF p_start_time >= p_end_time THEN
+    RAISE EXCEPTION 'Start time must be before end time';
+END IF;
+
+IF EXISTS (
+    SELECT 1
+    FROM Scheduled_class sc
+    WHERE sc.building_name = p_building_name
+      AND sc.room_number = p_room_number
+      AND sc.scheduled_day = p_day
+      AND (
+            (p_start_time, p_end_time) OVERLAPS (sc.start_time, sc.end_time)
+          )
+) THEN
+    RAISE EXCEPTION 'Room is already occupied at this time';
+END IF;
+
+IF EXISTS (
+    SELECT 1
+    FROM Scheduled_class sc
+    WHERE sc.course_offering_id = p_course_offering_id
+      AND sc.scheduled_day = p_day
+      AND (
+            (p_start_time, p_end_time) OVERLAPS (sc.start_time, sc.end_time)
+          )
+) THEN
+    RAISE EXCEPTION 'Course already has a class at this time';
+END IF;
+
+INSERT INTO Scheduled_class(
+    course_offering_id,
+    start_time,
+    end_time,
+    scheduled_day,
+    building_name,
+    room_number
+)
+VALUES (
+    p_course_offering_id,
+    p_start_time,
+    p_end_time,
+    p_day,
+    p_building_name,
+    p_room_number
+);
+
+END;
+$$ LANGUAGE plpgsql;
