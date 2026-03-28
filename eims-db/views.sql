@@ -164,7 +164,7 @@ JOIN Courses c
 
 CREATE VIEW Student_Feedback_View AS
 SELECT
-    f.student_id,
+    co.faculty_id,
     c.course_name,
     f.course_offering_id,
     f.feedback
@@ -355,3 +355,29 @@ FROM Student_SGPA s
 JOIN Students st
 ON s.student_id = st.student_id
 WHERE s.semester < st.semester;
+
+-- Attendance view of this semester for all students
+
+CREATE VIEW Student_Attendance_Summary AS
+SELECT 
+    scv.student_id,
+    scv.course_name,
+
+    COUNT(CASE WHEN a.status = 'Present' THEN 1 END) AS total_present,
+    COUNT(CASE WHEN a.status = 'Absent' THEN 1 END) AS total_absent
+
+FROM Student_Course_View scv
+
+LEFT JOIN Attendance a
+    ON scv.student_id = a.student_id
+    AND scv.course_offering_id = a.course_offering_id
+
+WHERE scv.semester = (
+    SELECT s.semester 
+    FROM Students s 
+    WHERE s.student_id = scv.student_id
+)
+
+GROUP BY 
+    scv.student_id,
+    scv.course_name;

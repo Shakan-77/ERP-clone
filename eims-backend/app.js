@@ -618,6 +618,147 @@ app.get('/student/:id/semester/:sem/transcript', async (req, res) => {
   }
 });
 
+app.get('/student/:id/attendance', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM Student_Attendance_Summary
+       WHERE student_id = $1`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching attendance");
+  }
+});
+
+app.get('/student/:id/feedback-courses', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT course_offering_id, course_name
+       FROM Student_Course_View
+       WHERE student_id = $1
+       AND semester = (
+         SELECT semester FROM Students WHERE student_id = $1
+       )`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching courses");
+  }
+});
+
+app.post('/student/submit-feedback', async (req, res) => {
+  let { student_id, course_offering_id, feedback } = req.body;
+
+  try {
+    feedback = feedback.trim();
+
+    await pool.query(
+      `SELECT submit_feedback($1, $2, $3)`,
+      [student_id, course_offering_id, feedback]
+    );
+
+    res.json({ message: "Feedback submitted successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/student/apply-leave', async (req, res) => {
+  let { student_id, start_date, end_date, reason } = req.body;
+
+  try {
+    reason = reason.trim();
+
+    await pool.query(
+      `SELECT apply_leave($1, $2, $3, $4)`,
+      [student_id, start_date, end_date, reason]
+    );
+
+    res.json({ message: "Leave request submitted successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get('/student/:id/leave-requests', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM Student_Leave_Requests
+       WHERE student_id = $1
+       ORDER BY start_date DESC`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching leave requests");
+  }
+});
+
+app.post('/student/apply-fee-remission', async (req, res) => {
+  const { student_id } = req.body;
+
+  try {
+    await pool.query(
+      `SELECT apply_fee_remission($1)`,
+      [student_id]
+    );
+
+    res.json({ message: "Fee remission application submitted" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get('/student/:id/fee-remission-status', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT status
+       FROM Fee_Remission_Application
+       WHERE student_id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ status: "Not Applied" });
+    }
+
+    res.json(result.rows[0]);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching status");
+  }
+});
+
+
+
 app.listen(3000, () => {
   console.log("Server running on port 3000");
 });

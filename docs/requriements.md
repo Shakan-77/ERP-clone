@@ -1,24 +1,28 @@
 Students can:
 
-Pay fees / view transcript (optional)
+X Pay fees / view transcript (optional) 
 
-Register for courses
+X Register for courses
 
-View attendance
+X View attendance
 
-View results (current semester)
+X View results (current semester)
 
-View performance (all semesters)
+X View performance (all semesters)
 
 Register for supplementary exams
 
-Submit feedback to faculty
+X Submit feedback to faculty
 
-Submit leave requests
+X Submit leave requests
 
-View their Faculty Advisor (FA)
+X View their Faculty Advisor (FA)
 
-Fee-Remmission-Application
+X Fee-Remmission-Application
+
+View Exams
+
+View Timetable
 
 
 Faculty can:
@@ -32,6 +36,8 @@ View courses they teach
 Approve / reject student leave requests
 
 View students under their advisory
+
+Book a room for extra class
 
 
 Admin can:
