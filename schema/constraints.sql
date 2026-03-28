@@ -319,8 +319,8 @@ ON DELETE CASCADE;
 
 ALTER TABLE Course_Registration
 ADD CONSTRAINT fk_registration_course
-FOREIGN KEY (course_id)
-REFERENCES Courses(course_id)
+FOREIGN KEY (course_offering_id)
+REFERENCES Course_Offerings(course_offering_id)
 ON DELETE CASCADE;
 
 ALTER TABLE Course_Registration

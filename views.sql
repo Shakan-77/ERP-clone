@@ -3,6 +3,7 @@
 CREATE VIEW Student_Registration_View AS
 SELECT
     cr.student_id,
+    s.student_name,
     co.course_offering_id,
     c.course_id,
     c.course_name,
@@ -11,8 +12,10 @@ SELECT
     f.faculty_name,
     cr.approved
 FROM Course_Registration cr
+JOIN Students s
+    ON cr.student_id = s.student_id
 JOIN Course_Offerings co
-    ON cr.course_id = co.course_id
+    ON cr.course_offering_id = co.course_offering_id
 JOIN Courses c
     ON co.course_id = c.course_id
 JOIN Faculty f
@@ -73,7 +76,7 @@ JOIN Courses c
 
 CREATE VIEW Student_SGPA AS
 SELECT 
-    g.student_id,
+    ca.student_id,
     co.semester,
 
     SUM(
@@ -99,14 +102,16 @@ SELECT
         ), 0
     ) AS sgpa
 
-FROM Grades g
+FROM Course_Allotted ca
 JOIN Course_Offerings co 
-    ON g.course_offering_id = co.course_offering_id
+    ON ca.course_offering_id = co.course_offering_id
 JOIN Courses c 
     ON co.course_id = c.course_id
+JOIN Grades g 
+    ON g.student_id = ca.student_id 
+   AND g.course_offering_id = ca.course_offering_id
 
-GROUP BY g.student_id, co.semester;
-
+GROUP BY ca.student_id, co.semester;
 
 
 --Fee Details
@@ -186,11 +191,14 @@ CREATE VIEW Student_Faculty_Advisor AS
 SELECT
     fa.student_id,
     f.faculty_id,
+    f.faculty_name,
     f.email,
-    f.contact_no
+    f.contact_no,
+    d.dept_name
 FROM Faculty_Advisor fa
-JOIN Faculty f
-    ON fa.faculty_id = f.faculty_id;
+JOIN Faculty f ON fa.faculty_id = f.faculty_id
+JOIN Departments d ON f.department_id = d.dept_id;
+
 
 --Courses taught by faculty
 
@@ -306,3 +314,44 @@ FROM Student_SGPA s
 JOIN Students st
 ON s.student_id = st.student_id
 WHERE s.semester = st.semester;
+
+-- Show result transcript for a student
+
+
+CREATE VIEW Student_Current_Sem_Courses_Grades AS
+SELECT
+    ca.student_id,
+    s.student_name,
+    co.semester,
+    co.course_offering_id,
+    c.course_id,
+    c.course_name,
+    c.credits,
+    g.grade,
+    ca.mid_sem_marks,
+    ca.end_sem_marks
+FROM Course_Allotted ca
+
+JOIN Students s
+    ON ca.student_id = s.student_id
+
+JOIN Course_Offerings co
+    ON ca.course_offering_id = co.course_offering_id
+
+JOIN Courses c
+    ON co.course_id = c.course_id
+
+LEFT JOIN Grades g
+    ON g.student_id = ca.student_id
+   AND g.course_offering_id = ca.course_offering_id
+
+WHERE co.semester = s.semester;
+
+-- Show Student previous SGPA
+
+CREATE VIEW Student_Previous_SGPA AS
+SELECT s.*
+FROM Student_SGPA s
+JOIN Students st
+ON s.student_id = st.student_id
+WHERE s.semester < st.semester;

@@ -6,5 +6,5 @@ CREATE TABLE Course_Registration (
     semester INT,
     selected BOOLEAN DEFAULT TRUE,
     approved BOOLEAN DEFAULT FALSE,
-    PRIMARY KEY (student_id, course_id, semester)
+    PRIMARY KEY (student_id, course_offering_id, semester)
 );
