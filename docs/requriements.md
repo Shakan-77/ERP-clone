@@ -18,6 +18,8 @@ Submit leave requests
 
 View their Faculty Advisor (FA)
 
+Fee-Remmission-Application
+
 
 Faculty can:
 
