@@ -231,15 +231,21 @@ JOIN Courses c
 
 --Faculty Leave Approvals
 
-CREATE VIEW Faculty_Leave_Approvals AS
+CREATE OR REPLACE VIEW Faculty_Leave_Approvals AS
 SELECT
     lr.request_id,
     lr.student_id,
+    s.student_name,
     lr.start_date,
     lr.end_date,
     lr.reason,
-    lr.status
-FROM Leave_Requests lr;
+    lr.status,
+    sfa.faculty_id
+FROM Leave_Requests lr
+JOIN Student_Faculty_Advisor sfa
+    ON lr.student_id = sfa.student_id
+JOIN Students s
+    ON lr.student_id = s.student_id;
 
 --Students under Advisory
 
@@ -381,3 +387,23 @@ WHERE scv.semester = (
 GROUP BY 
     scv.student_id,
     scv.course_name;
+
+-- Student timetable view
+
+CREATE VIEW Student_Timetable_View AS
+SELECT
+    ca.student_id,
+    c.course_name,
+    sc.scheduled_day,
+    sc.start_time,
+    sc.end_time,
+    sc.building_name,
+    sc.room_number
+FROM Course_Allotted ca
+JOIN Scheduled_class sc
+    ON ca.course_offering_id = sc.course_offering_id
+JOIN Course_Offerings co
+    ON sc.course_offering_id = co.course_offering_id
+JOIN Courses c
+    ON co.course_id = c.course_id;
+

@@ -10,7 +10,7 @@ X View results (current semester)
 
 X View performance (all semesters)
 
-Register for supplementary exams
+X Register for supplementary exams
 
 X Submit feedback to faculty
 
@@ -20,24 +20,26 @@ X View their Faculty Advisor (FA)
 
 X Fee-Remmission-Application
 
-View Exams
+X View Exams
 
-View Timetable
+X View Timetable
 
 
 Faculty can:
 
-Mark attendance
+X Mark attendance
 
-Upload grades
+X Upload grades
 
-View courses they teach
+X View courses they teach
 
-Approve / reject student leave requests
+X Approve / reject student leave requests
 
-View students under their advisory
+X View students under their advisory
 
-Book a room for extra class
+X Book a room for extra class
+
+X View the feedback
 
 
 Admin can:

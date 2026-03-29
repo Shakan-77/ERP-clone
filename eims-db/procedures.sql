@@ -1,5 +1,4 @@
 -- Update Attendance status
-
 CREATE OR REPLACE PROCEDURE mark_attendance(
     p_offering_id INT,
     p_date DATE,
@@ -30,12 +29,12 @@ BEGIN
             ELSE 'Absent'
         END
     FROM Course_Allotted ca
-    LEFT JOIN on_leave ol ON cr.student_id = ol.student_id 
-        AND p_date BETWEEN ol.leave_start_date AND ol.leave_end_date
+    LEFT JOIN On_leave ol 
+        ON ca.student_id = ol.student_id 
+        AND p_date BETWEEN ol.start_date AND ol.end_date
     WHERE ca.course_offering_id = p_offering_id
       AND NOT (ca.student_id = ANY(p_present_student_ids));
 
-    COMMIT;
 END;
 $$;
 

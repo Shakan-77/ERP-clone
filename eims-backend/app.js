@@ -757,7 +757,324 @@ app.get('/student/:id/fee-remission-status', async (req, res) => {
   }
 });
 
+app.get('/student/:id/exams', async (req, res) => {
+  const { id } = req.params;
 
+  try {
+    const result = await pool.query(
+      `SELECT course_name, date_of_exam, building_name, room_number
+       FROM Student_Exam_View
+       WHERE student_id = $1
+       ORDER BY date_of_exam`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching exams");
+  }
+});
+
+app.get('/student/:id/timetable', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM Student_Timetable_View
+       WHERE student_id = $1
+       ORDER BY 
+         CASE scheduled_day
+           WHEN 'Monday' THEN 1
+           WHEN 'Tuesday' THEN 2
+           WHEN 'Wednesday' THEN 3
+           WHEN 'Thursday' THEN 4
+           WHEN 'Friday' THEN 5
+         END,
+         start_time`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching timetable");
+  }
+});
+
+app.get('/student/:id/supplementary-exams', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT course_name, price, course_offering_id
+       FROM Student_Supplementary_Exams
+       WHERE student_id = $1`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching supplementary exams");
+  }
+});
+
+app.get('/faculty/course/:course_offering_id/students-attendance', async (req, res) => {
+  const { course_offering_id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT s.student_id, s.student_name
+       FROM Faculty_Course_Students fcs
+       JOIN Students s 
+         ON fcs.student_id = s.student_id
+       WHERE fcs.course_offering_id = $1`,
+      [course_offering_id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching students");
+  }
+});
+
+app.post('/faculty/mark-attendance', async (req, res) => {
+  const { course_offering_id, date, present_student_ids } = req.body;
+
+  try {
+    await pool.query(
+      `CALL mark_attendance($1, $2, $3)`,
+      [course_offering_id, date, present_student_ids]
+    );
+
+    res.json({ message: "Attendance marked successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get('/faculty/:id/courses', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT course_name, course_offering_id, semester, year_offering
+       FROM Faculty_Courses_Taught
+       WHERE faculty_id = $1`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching courses");
+  }
+});
+
+app.get('/faculty/course/:course_offering_id/students', async (req, res) => {
+  const { course_offering_id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT s.student_id, s.student_name
+       FROM Faculty_Course_Students fcs
+       JOIN Students s 
+         ON fcs.student_id = s.student_id
+       WHERE fcs.course_offering_id = $1`,
+      [course_offering_id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching students");
+  }
+});
+
+app.post('/faculty/upload-grades', async (req, res) => {
+  const { course_offering_id, grades } = req.body;
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    for (let g of grades) {
+      await client.query(
+        `SELECT upload_grade($1, $2, $3)`,
+        [g.student_id, course_offering_id, g.grade]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    res.json({ message: "Grades uploaded successfully" });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/faculty/:id/current-courses', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT course_name, course_offering_id, semester, year_offering
+       FROM Faculty_Courses_Taught
+       WHERE faculty_id = $1
+       AND year_offering = EXTRACT(YEAR FROM CURRENT_DATE)
+       AND (
+         (EXTRACT(MONTH FROM CURRENT_DATE) < 6 AND semester % 2 = 0)
+         OR
+         (EXTRACT(MONTH FROM CURRENT_DATE) >= 6 AND semester % 2 = 1)
+       )`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching current courses");
+  }
+});
+
+app.get('/faculty/:id/leave-requests', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT request_id, student_id, student_name,
+              start_date, end_date, reason, status
+       FROM Faculty_Leave_Approvals
+       WHERE faculty_id = $1
+       AND status = 'Pending'`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching leave requests");
+  }
+});
+
+app.post('/faculty/leave-action', async (req, res) => {
+  const { request_id, action } = req.body; 
+
+  try {
+    await pool.query(
+      `UPDATE Leave_Requests
+       SET status = $1
+       WHERE request_id = $2`,
+      [action, request_id]
+    );
+
+    res.json({ message: `Leave ${action}` });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error updating leave status");
+  }
+});
+
+app.get('/faculty/:id/advisory-students', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT sfa.student_id, s.student_name
+       FROM Student_Faculty_Advisor sfa
+       JOIN Students s 
+         ON sfa.student_id = s.student_id
+       WHERE sfa.faculty_id = $1`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching advisory students");
+  }
+});
+
+app.post('/faculty/check-rooms', async (req, res) => {
+  const { date, building_name, start_time, end_time } = req.body;
+
+  try {
+    let query = `
+      SELECT DISTINCT sc.room_number
+      FROM Scheduled_class sc
+      WHERE 1=1
+    `;
+
+    let values = [];
+    let index = 1;
+
+    if (building_name) {
+      query += ` AND sc.building_name = $${index++}`;
+      values.push(building_name);
+    }
+
+    if (date) {
+      query += ` AND TRIM(sc.scheduled_day) = TRIM(TO_CHAR($${index++}::date, 'FMDay'))`;
+      values.push(date);
+    }
+
+    if (start_time && end_time) {
+      query += ` AND NOT (($${index}, $${index + 1}) OVERLAPS (sc.start_time, sc.end_time))`;
+      values.push(start_time, end_time);
+      index += 2;
+    }
+
+    const result = await pool.query(query, values);
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error checking rooms");
+  }
+});
+
+app.get('/faculty/course/:course_offering_id/feedbacks', async (req, res) => {
+  const { course_offering_id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT f.feedback
+       FROM Feedback f
+       JOIN Students s 
+         ON f.student_id = s.student_id
+       WHERE f.course_offering_id = $1`,
+      [course_offering_id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching feedback");
+  }
+});
 
 app.listen(3000, () => {
   console.log("Server running on port 3000");

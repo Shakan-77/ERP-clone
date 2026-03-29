@@ -26,8 +26,8 @@ CREATE OR REPLACE FUNCTION add_student_on_leave()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.status = 'Approved' AND OLD.status <> 'Approved' THEN
-        INSERT INTO On_leave(student_id, request_id)
-        VALUES (NEW.student_id, NEW.request_id);
+        INSERT INTO On_leave(student_id, start_date, end_date, request_id)
+        VALUES (NEW.student_id, NEW.start_date, NEW.end_date, NEW.request_id);
     END IF;
 
     RETURN NEW;
