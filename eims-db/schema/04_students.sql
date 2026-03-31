@@ -2,7 +2,7 @@
 -- Stores student personal and academic information
 
 CREATE TABLE Students (
-    student_id INT PRIMARY KEY,
+    student_id TEXT PRIMARY KEY,
     student_name TEXT NOT NULL,
     contact_no VARCHAR(10),
     college_email TEXT,

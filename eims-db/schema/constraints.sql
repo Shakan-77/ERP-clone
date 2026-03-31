@@ -2,13 +2,7 @@
 -- USERS TABLE CONSTRAINTS
 -- =============================
 
-ALTER TABLE Users
-ADD CONSTRAINT chk_user_password
-CHECK (
-    password ~ '[A-Z]' AND
-    password ~ '[0-9]' AND
-    password ~ '[^A-Za-z0-9]'
-);
+
 
 ALTER TABLE Users
 ADD CONSTRAINT chk_user_role

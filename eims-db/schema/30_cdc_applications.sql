@@ -1,7 +1,7 @@
 -- CDC Applications by Students
 
 CREATE TABLE CDC_Applications (
-    student_id INT,
+    student_id TEXT,
     cdc_id INT,
 
     resume_link TEXT,

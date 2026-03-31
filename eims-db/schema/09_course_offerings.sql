@@ -3,8 +3,8 @@
 
 CREATE TABLE Course_Offerings (
     course_offering_id INT PRIMARY KEY,
-    faculty_id INT,
-    course_id INT,
+    faculty_id TEXT,
+    course_id TEXT,
     year_offering INT,
     semester INT,
     discipline_id TEXT,

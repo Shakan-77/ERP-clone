@@ -2,8 +2,8 @@
 -- Tracks courses that students must retake
 
 CREATE TABLE Backlogs (
-    student_id INT,
-    course_id INT,
+    student_id TEXT,
+    course_id TEXT,
 
     PRIMARY KEY(student_id, course_id)
 );

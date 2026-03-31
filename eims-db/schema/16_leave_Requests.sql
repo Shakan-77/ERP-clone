@@ -3,7 +3,7 @@
 
 CREATE TABLE Leave_Requests (
     request_id INT PRIMARY KEY,
-    student_id INT,
+    student_id TEXT,
     start_date DATE,
     end_date DATE,
     reason TEXT,

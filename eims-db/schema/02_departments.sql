@@ -4,5 +4,5 @@
 CREATE TABLE Departments (
     dept_id INT PRIMARY KEY,
     dept_name TEXT NOT NULL,
-    head_dept_id INT
+    head_dept_id TEXT
 );

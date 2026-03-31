@@ -40,6 +40,16 @@ app.post('/signup', async (req, res) => {
   const { user_id, password, role } = req.body;
 
   try {
+    if (
+      !/[A-Z]/.test(password) ||
+      !/[0-9]/.test(password) ||
+      !/[^A-Za-z0-9]/.test(password)
+    ) {
+      return res.status(400).json({
+        message: "Password must contain at least 1 uppercase, 1 number, and 1 special character"
+      });
+    }
+
     const userCheck = await pool.query(
       "SELECT 1 FROM Users WHERE user_id = $1",
       [user_id]
@@ -62,7 +72,6 @@ app.post('/signup', async (req, res) => {
         [user_id]
       );
     }
-
     if (role === "Faculty") {
       await pool.query(
         "INSERT INTO Faculty (faculty_id) VALUES ($1)",
@@ -73,10 +82,11 @@ app.post('/signup', async (req, res) => {
     res.json({ message: "Signup successful" });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("FULL ERROR:", err);
+    res.status(500).json({ message: err.message });
   }
 });
+
 
 app.post('/login', async (req, res) => {
   const { user_id, password } = req.body;
@@ -93,7 +103,6 @@ app.post('/login', async (req, res) => {
 
     const user = result.rows[0];
 
-    // bcrypt check
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -114,6 +123,7 @@ app.post('/login', async (req, res) => {
 app.post('/student/profile', async (req, res) => {
   const {
     student_id,
+    student_name,
     contact_no,
     college_email,
     personal_email,
@@ -127,17 +137,19 @@ app.post('/student/profile', async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE Students
-       SET contact_no = $1,
-           college_email = $2,
-           personal_email = $3,
-           residence_address = $4,
-           join_date = $5,
-           semester = $6,
-           department_id = $7,
-           discipline_id = $8
-       WHERE student_id = $9
+       SET student_name = $1,
+           contact_no = $2,
+           college_email = $3,
+           personal_email = $4,
+           residence_address = $5,
+           join_date = $6,
+           semester = $7,
+           department_id = $8,
+           discipline_id = $9
+       WHERE student_id = $10
        RETURNING *`,
       [
+        student_name,
         contact_no,
         college_email,
         personal_email,
@@ -188,7 +200,7 @@ app.get('/student/profile/:id', async (req, res) => {
 
 app.get('/users', async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM Users");
+    const result = await pool.query("SELECT user_id, role FROM Users");
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -290,8 +302,6 @@ app.get('/faculty/student-courses/:student_id', async (req, res) => {
   }
 });
 
-
-const transporter = require('./mail');
 
 app.post('/faculty/approve', async (req, res) => {
   const { student_id, course_offering_id } = req.body;
