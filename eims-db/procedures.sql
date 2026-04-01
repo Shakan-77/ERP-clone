@@ -43,7 +43,7 @@ $$;
 CREATE SEQUENCE leave_request_seq START 1;
 
 CREATE OR REPLACE FUNCTION apply_leave(
-    p_student_id INT,
+    p_student_id TEXT,
     p_start_date DATE,
     p_end_date DATE,
     p_reason TEXT
@@ -78,7 +78,7 @@ $$ LANGUAGE plpgsql;
 --Update grades for a Student
 
 CREATE OR REPLACE FUNCTION upload_grade(
-    p_student_id INT,
+    p_student_id TEXT,
     p_course_offering_id INT,
     p_grade TEXT
 )
@@ -100,7 +100,7 @@ $$ LANGUAGE plpgsql;
 --Update feedback for a course
 
 CREATE OR REPLACE FUNCTION submit_feedback(
-    p_student_id INT,
+    p_student_id TEXT,
     p_course_offering_id INT,
     p_feedback TEXT
 )
@@ -124,7 +124,7 @@ $$ LANGUAGE plpgsql;
 CREATE SEQUENCE fee_payment_seq START 1;
 
 CREATE OR REPLACE FUNCTION make_payment(
-    p_student_id INT,
+    p_student_id TEXT,
     p_semester INT,
     p_amount NUMERIC
 )
@@ -192,7 +192,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE SEQUENCE fee_remission_application_seq START 1;
 
-CREATE OR REPLACE FUNCTION apply_fee_remission(p_student_id INT)
+CREATE OR REPLACE FUNCTION apply_fee_remission(p_student_id TEXT)
 RETURNS VOID AS $$
 BEGIN
 

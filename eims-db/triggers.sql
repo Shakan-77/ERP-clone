@@ -195,7 +195,7 @@ BEGIN
 
 UPDATE Balance
 SET remaining_balance = remaining_balance - NEW.amount_paid
-WHERE student_id = NEW.student_id;
+WHERE student_id = NEW.student_id and NEW.payment_date=(SELECT MAX(payment_date) FROM Fee_Payment WHERE student_id = NEW.student_id);
 
 RETURN NEW;
 
@@ -262,7 +262,7 @@ EXECUTE FUNCTION set_balance_from_discipline_fee();
 
 -- Insert into Course Registration when Registration Window Opens
 
-CREATE OR REPLACE PROCEDURE bulk_register_students(p_semester INT)
+CREATE OR REPLACE PROCEDURE bulk_register_students()
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -274,13 +274,16 @@ BEGIN
     SELECT 
         s.student_id, 
         co.course_offering_id, 
-        p_semester
+        s.semester
     FROM Students s
     LEFT JOIN Balance b ON s.student_id = b.student_id
-    JOIN Course_Offerings co ON s.discipline_id = co.discipline_id
-    JOIN Courses c ON co.course_id = c.course_id AND s.department_id = c.department_id
+    JOIN Course_Offerings co 
+        ON s.discipline_id = co.discipline_id
+    JOIN Courses c 
+        ON co.course_id = c.course_id 
+       AND s.department_id = c.department_id
     WHERE (b.remaining_balance IS NULL OR b.remaining_balance <= 0)
-      AND co.semester = p_semester
+      AND s.semester = co.semester
       AND co.year_offering = current_year
       AND NOT EXISTS (
           SELECT 1 FROM Course_Registration cr 
@@ -293,14 +296,17 @@ BEGIN
     SELECT 
         b_log.student_id, 
         co.course_offering_id,
-        p_semester
+        s.semester
     FROM Backlogs b_log
     JOIN Students s ON b_log.student_id = s.student_id
     LEFT JOIN Balance b ON s.student_id = b.student_id
-    JOIN Course_Offerings co ON co.course_id = b_log.course_id
-    JOIN Courses c ON b_log.course_id = c.course_id AND s.department_id = c.department_id
+    JOIN Course_Offerings co 
+        ON co.course_id = b_log.course_id
+    JOIN Courses c 
+        ON b_log.course_id = c.course_id 
+       AND s.department_id = c.department_id
     WHERE (b.remaining_balance IS NULL OR b.remaining_balance <= 0)
-      AND co.semester = p_semester
+      AND s.semester = co.semester
       AND co.year_offering = current_year
       AND NOT EXISTS (
           SELECT 1 FROM Course_Registration cr 
@@ -314,20 +320,12 @@ $$;
 CREATE OR REPLACE FUNCTION trg_registration_open()
 RETURNS TRIGGER AS $$
 BEGIN
-
     IF NEW.registration_open_date <= CURRENT_DATE THEN
-        CALL bulk_register_students(NEW.semester); 
+        CALL bulk_register_students();
     END IF;
-    
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_registration_open
-AFTER INSERT OR UPDATE OF registration_open_date
-ON System_Config
-FOR EACH ROW
-EXECUTE FUNCTION trg_registration_open();
 
 --Move approved courses to Course_Allotted and remove from Course_Registration
 

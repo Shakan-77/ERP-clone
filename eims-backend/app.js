@@ -334,28 +334,28 @@ app.post('/faculty/approve', async (req, res) => {
 
     const coursesRes = await pool.query(
       `SELECT course_name, faculty_name, semester
-       FROM Student_Course_View
+       FROM Student_course_view
        WHERE student_id = $1`,
       [student_id]
     );
 
-    let courseList = coursesRes.rows
+    /*let courseList = coursesRes.rows
       .map(c => `• ${c.course_name} (Faculty: ${c.faculty_name}, Sem: ${c.semester})`)
       .join('\n');
 
-    await transporter.sendMail({
+      await transporter.sendMail({
       from: '23cs01028@iitbbs.ac.in',
       to: email,
       subject: 'Course Registration Approved',
       text: `Your course registration is fully approved.\n\nRegistered Courses:\n${courseList}`
-    });
+    });*/
 
     res.json({ message: "All courses approved. Email sent." });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error approving course");
-  }
+  console.error("FULL ERROR:", err);
+  res.status(500).json({ error: err.message });
+}
 });
 
 app.get('/student/courses/:id', async (req, res) => {
@@ -405,14 +405,20 @@ app.post('/student/:id/pay', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const insertPayment = await client.query(
-      `INSERT INTO Fee_Payment (student_id, semester, amount_paid, payment_date)
-       VALUES ($1, $2, $3, CURRENT_DATE)
-       RETURNING *`,
+    await client.query(
+      `SELECT make_payment($1, $2, $3)`,
       [id, semester, amount_paid]
     );
 
-    paymentData = insertPayment.rows[0];
+    const paymentRes = await client.query(
+      `SELECT * FROM Fee_Payment
+       WHERE student_id = $1
+       ORDER BY payment_id DESC
+       LIMIT 1`,
+      [id]
+    );
+
+    paymentData = paymentRes.rows[0];
 
     const balanceRes = await client.query(
       `SELECT remaining_balance FROM Balance WHERE student_id = $1`,
@@ -432,12 +438,13 @@ app.post('/student/:id/pay', async (req, res) => {
 
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error(err);
-    return res.status(500).json({ message: "Transaction failed" });
+    console.error("FULL ERROR:", err);
+    return res.status(500).json({ message: err.message });
   } finally {
     client.release();
   }
 
+  
   try {
     if (remainingBalance === 0) {
 
@@ -456,7 +463,11 @@ app.post('/student/:id/pay', async (req, res) => {
         transcriptText += `Amount: ₹${row.amount_paid}\n`;
         transcriptText += `Date: ${row.payment_date}\n\n`;
       });
+ 
+      console.log("Email would be sent to:", email);
+      console.log(transcriptText);
 
+      /*
       await transporter.sendMail({
         from: '23cs01028@iitbbs.ac.in',
         to: email,
@@ -469,6 +480,8 @@ ${transcriptText}
 
 Thank you!`
       });
+      */
+
     }
   } catch (mailErr) {
     console.error("Email failed:", mailErr);
@@ -480,7 +493,6 @@ Thank you!`
     remaining_balance: remainingBalance
   });
 });
-
 
 app.get('/student/:id/payment-history', async (req, res) => {
     const { id } = req.params;
@@ -931,6 +943,7 @@ app.post('/faculty/upload-grades', async (req, res) => {
 
     res.json({ message: "Grades uploaded successfully" });
 
+    
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);

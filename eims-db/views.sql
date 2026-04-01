@@ -1,6 +1,6 @@
 --Registration options for Students
 
-CREATE VIEW Student_Registration_View AS
+CREATE VIEW OR REPLACE Student_Registration_View AS
 SELECT
     cr.student_id,
     s.student_name,
@@ -10,7 +10,8 @@ SELECT
     co.semester,
     f.faculty_id,
     f.faculty_name,
-    cr.approved
+    cr.approved,
+    cr.selected
 FROM Course_Registration cr
 JOIN Students s
     ON cr.student_id = s.student_id
@@ -138,12 +139,10 @@ SELECT
     fp.semester,
     fp.amount_paid,
     fp.payment_date,
-    d.discipline_id,
-    b.remaining_balance
+    d.discipline_id
 FROM Fee_Payment fp
 JOIN Students s ON fp.student_id = s.student_id
 JOIN Discipline d ON s.discipline_id = d.discipline_id
-JOIN Balance b ON s.student_id = b.student_id
 ORDER BY fp.payment_date DESC;
 
 --Supplementary exam Registrations
