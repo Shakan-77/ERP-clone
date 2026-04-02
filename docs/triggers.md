@@ -24,3 +24,6 @@ Add faculty name in Course api/ view
 
 Lock fee payment through system config by setting variable which can be open/close
 
+CHECK GET AND POST for booking rooms
+
+removal of booked classes after completion

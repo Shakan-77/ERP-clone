@@ -289,3 +289,140 @@ VALUES (
 
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_room_availability(p_day TEXT DEFAULT NULL)
+RETURNS TABLE (
+  building_name TEXT,
+  room_number INT,
+  scheduled_day TEXT,
+  start_time TIME,
+  end_time TIME
+)
+LANGUAGE sql
+AS $$
+WITH days AS (
+  SELECT unnest(
+    CASE 
+      WHEN p_day IS NOT NULL THEN ARRAY[p_day]
+      ELSE ARRAY['Monday','Tuesday','Wednesday','Thursday','Friday']
+    END
+  ) AS scheduled_day
+),
+
+time_slots AS (
+  SELECT generate_series(
+    TIME '08:00',
+    TIME '17:30',
+    INTERVAL '30 minutes'
+  ) AS start_time
+),
+
+all_combinations AS (
+  SELECT r.building_name, r.room_number,
+         d.scheduled_day,
+         ts.start_time,
+         ts.start_time + INTERVAL '30 minutes' AS end_time
+  FROM Rooms r
+  CROSS JOIN days d
+  CROSS JOIN time_slots ts
+),
+
+conflicts AS (
+  SELECT building_name, room_number, scheduled_day, start_time, end_time
+  FROM Scheduled_class
+
+  UNION ALL
+
+  SELECT building_name, room_number, scheduled_day, start_time, end_time
+  FROM booked_class
+),
+
+free_slots AS (
+  SELECT ac.*
+  FROM all_combinations ac
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM conflicts c
+    WHERE c.building_name = ac.building_name
+      AND c.room_number = ac.room_number
+      AND c.scheduled_day = ac.scheduled_day
+      AND NOT (
+        c.end_time <= ac.start_time OR
+        c.start_time >= ac.end_time
+      )
+  )
+),
+
+grouped_slots AS (
+  SELECT *,
+    start_time - (ROW_NUMBER() OVER (
+      PARTITION BY building_name, room_number, scheduled_day
+      ORDER BY start_time
+    ) * INTERVAL '30 minutes') AS grp
+  FROM free_slots
+)
+
+SELECT
+  building_name,
+  room_number,
+  scheduled_day,
+  MIN(start_time),
+  MAX(end_time)
+FROM grouped_slots
+GROUP BY building_name, room_number, scheduled_day, grp
+ORDER BY scheduled_day, building_name, room_number, MIN(start_time);
+$$;
+
+CREATE OR REPLACE PROCEDURE insert_bookings(p_bookings JSON)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  b JSON;
+BEGIN
+  FOR b IN SELECT * FROM json_array_elements(p_bookings)
+  LOOP
+
+    IF EXISTS (
+      SELECT 1
+      FROM (
+        SELECT building_name, room_number, scheduled_day, start_time, end_time FROM Scheduled_class
+        UNION ALL
+        SELECT building_name, room_number, scheduled_day, start_time, end_time FROM booked_class
+      ) AS conflicts
+      WHERE building_name = (b->>'building_name')
+        AND room_number = (b->>'room_number')::INT
+        AND scheduled_day = (b->>'scheduled_day')
+        AND NOT (
+          end_time <= (b->>'start_time')::TIME OR
+          start_time >= (b->>'end_time')::TIME
+        )
+    ) THEN
+      RAISE EXCEPTION 
+        'Conflict for Room %-% on %',
+        b->>'building_name',
+        b->>'room_number',
+        b->>'scheduled_day';
+    END IF;
+
+    INSERT INTO booked_class (
+    building_name,
+    room_number,
+    scheduled_day,
+    start_time,
+    end_time,
+    faculty_id,
+    course_offering_id
+    )
+    VALUES (
+    b->>'building_name',
+    (b->>'room_number')::INT,
+    b->>'scheduled_day',
+    (b->>'start_time')::TIME,
+    (b->>'end_time')::TIME,
+    b->>'faculty_id',
+    (b->>'course_offering_id')::INT
+    );
+
+  END LOOP;
+END;
+$$;

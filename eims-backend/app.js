@@ -1053,57 +1053,21 @@ app.get('/faculty/:id/advisory-students', async (req, res) => {
   }
 });
 
-app.post('/faculty/check-rooms', async (req, res) => {
-  const { date, building_name, start_time, end_time } = req.body;
-
-  try {
-    let query = `
-      SELECT DISTINCT sc.room_number
-      FROM Scheduled_class sc
-      WHERE 1=1
-    `;
-    const values = [];
-    let index = 1;
-
-    if (building_name) {
-      query += ` AND sc.building_name = $${index++}`;
-      values.push(building_name);
-    }
-
-    if (date) {
-      query += ` AND TRIM(sc.scheduled_day) = TRIM(TO_CHAR($${index++}::date, 'FMDay'))`;
-      values.push(date);
-    }
-
-    if (start_time && end_time) {
-      // Use explicit TIME literals to avoid type ambiguity
-      query += ` AND NOT (sc.start_time < TIME '${end_time}' AND sc.end_time > TIME '${start_time}')`;
-    }
-
-    const result = await pool.query(query, values);
-    res.json(result.rows);
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error checking rooms");
-  }
-});
-
 app.get('/faculty/course/:course_offering_id/feedbacks', async (req, res) => {
   const { course_offering_id } = req.params;
-
+  
   try {
     const result = await pool.query(
       `SELECT f.feedback
-       FROM Feedback f
-       JOIN Students s 
-         ON f.student_id = s.student_id
-       WHERE f.course_offering_id = $1`,
+      FROM Feedback f
+      JOIN Students s 
+      ON f.student_id = s.student_id
+      WHERE f.course_offering_id = $1`,
       [course_offering_id]
     );
-
+    
     res.json(result.rows);
-
+    
   } catch (err) {
     console.error(err);
     res.status(500).send("Error fetching feedback");
@@ -1112,4 +1076,60 @@ app.get('/faculty/course/:course_offering_id/feedbacks', async (req, res) => {
 
 app.listen(3000, () => {
   console.log("Server running on port 3000");
+});
+
+app.get('/faculty/available-slots', async (req, res) => {
+  const { day, course_offering_id } = req.query;
+
+  try {
+    if (!course_offering_id) {
+      return res.status(400).json({
+        error: "course_offering_id is required"
+      });
+    }
+
+    const result = await pool.query(
+      `SELECT * FROM get_room_availability($1)`,
+      [day || null]
+    );
+
+    res.json({
+      course_offering_id,
+      slots: result.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching slots");
+  }
+});
+
+app.post('/faculty/book-rooms', async (req, res) => {
+  const { bookings } = req.body;
+
+  try {
+    // Validate input
+    for (const b of bookings) {
+      if (!b.course_offering_id) {
+        return res.status(400).json({
+          error: "course_offering_id is required for all bookings"
+        });
+      }
+    }
+
+    await pool.query(
+      `CALL insert_bookings($1)`,
+      [JSON.stringify(bookings)]
+    );
+
+    res.status(201).json({
+      message: "Bookings successful"
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({
+      error: err.message
+    });
+  }
 });

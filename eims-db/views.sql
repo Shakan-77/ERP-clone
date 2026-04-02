@@ -389,7 +389,8 @@ GROUP BY
 
 -- Student timetable view
 
-CREATE VIEW Student_Timetable_View AS
+CREATE OR REPLACE VIEW Student_Timetable_View AS
+
 SELECT
     ca.student_id,
     c.course_name,
@@ -397,12 +398,32 @@ SELECT
     sc.start_time,
     sc.end_time,
     sc.building_name,
-    sc.room_number
+    sc.room_number,
+    'REGULAR' AS class_type
 FROM Course_Allotted ca
 JOIN Scheduled_class sc
     ON ca.course_offering_id = sc.course_offering_id
 JOIN Course_Offerings co
     ON sc.course_offering_id = co.course_offering_id
+JOIN Courses c
+    ON co.course_id = c.course_id
+
+UNION ALL
+
+SELECT
+    ca.student_id,
+    c.course_name,
+    bc.scheduled_day,
+    bc.start_time,
+    bc.end_time,
+    bc.building_name,
+    bc.room_number,
+    'EXTRA' AS class_type
+FROM Course_Allotted ca
+JOIN booked_class bc
+    ON ca.course_offering_id = bc.course_offering_id
+JOIN Course_Offerings co
+    ON bc.course_offering_id = co.course_offering_id
 JOIN Courses c
     ON co.course_id = c.course_id;
 

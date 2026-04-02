@@ -264,3 +264,22 @@ ON CDC_Applications(student_id);
 
 CREATE INDEX IF NOT EXISTS idx_cdc_app_cdc
 ON CDC_Applications(cdc_id);
+
+
+CREATE INDEX idx_scheduled_class_main
+ON Scheduled_class (building_name, room_number, scheduled_day, start_time, end_time);
+
+CREATE INDEX idx_booked_class_main
+ON booked_class (building_name, room_number, scheduled_day, start_time, end_time);
+
+CREATE INDEX idx_rooms_main
+ON Rooms (building_name, room_number);
+
+CREATE INDEX idx_scheduled_class_day
+ON Scheduled_class (scheduled_day);
+
+CREATE INDEX idx_booked_class_day
+ON booked_class (scheduled_day);
+
+CREATE INDEX idx_booked_class_course
+ON booked_class (course_offering_id);
