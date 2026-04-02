@@ -214,23 +214,30 @@ RETURNS TRIGGER AS $$
 DECLARE
     room_cap INT;
     students INT;
+    room_no INT;
+    building TEXT;
 BEGIN
+    -- get room info from Exams table
+    SELECT room_number, building_name INTO room_no, building
+    FROM Exams
+    WHERE exam_id = NEW.exam_id;
 
-SELECT capacity INTO room_cap
-FROM Rooms
-WHERE building_name = NEW.building_name
-AND room_number = NEW.room_number;
+    -- get room capacity from Rooms table
+    SELECT capacity INTO room_cap
+    FROM Rooms
+    WHERE room_number = room_no
+      AND building_name = building;
 
-SELECT COUNT(*) INTO students
-FROM Exam_Seating
-WHERE exam_id = NEW.exam_id;
+    -- count current students in Exam_Seating for this exam
+    SELECT COUNT(*) INTO students
+    FROM Exam_Seating
+    WHERE exam_id = NEW.exam_id;
 
-IF students >= room_cap THEN
-    RAISE EXCEPTION 'Room capacity exceeded';
-END IF;
+    IF students >= room_cap THEN
+        RAISE EXCEPTION 'Room capacity exceeded for exam %', NEW.exam_id;
+    END IF;
 
-RETURN NEW;
-
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 

@@ -2,7 +2,7 @@
 CREATE OR REPLACE PROCEDURE mark_attendance(
     p_offering_id INT,
     p_date DATE,
-    p_present_student_ids INT[]
+    p_present_student_ids TEXT[]
 )
 LANGUAGE plpgsql
 AS $$
