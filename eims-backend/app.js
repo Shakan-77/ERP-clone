@@ -403,6 +403,18 @@ app.post('/student/:id/pay', async (req, res) => {
   let email;
 
   try {
+    const configRes = await client.query(
+      `SELECT is_fees_open FROM System_Config WHERE config_id = 1`
+    );
+
+    const isOpen = configRes.rows[0]?.is_fees_open;
+
+    if (!isOpen) {
+      return res.status(403).json({
+        message: "Fee payment is currently closed by admin"
+      });
+    }
+
     await client.query('BEGIN');
 
     await client.query(
@@ -439,12 +451,14 @@ app.post('/student/:id/pay', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error("FULL ERROR:", err);
-    return res.status(500).json({ message: err.message });
+
+    return res.status(400).json({
+      message: err.message
+    });
   } finally {
     client.release();
   }
 
-  
   try {
     if (remainingBalance === 0) {
 
@@ -463,7 +477,7 @@ app.post('/student/:id/pay', async (req, res) => {
         transcriptText += `Amount: ₹${row.amount_paid}\n`;
         transcriptText += `Date: ${row.payment_date}\n\n`;
       });
- 
+
       console.log("Email would be sent to:", email);
       console.log(transcriptText);
 
@@ -664,7 +678,7 @@ app.get('/student/:id/feedback-courses', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT course_offering_id, course_name
+      `SELECT course_offering_id, course_name,faculty_name
        FROM Student_Course_View
        WHERE student_id = $1
        AND semester = (
@@ -1048,8 +1062,7 @@ app.post('/faculty/check-rooms', async (req, res) => {
       FROM Scheduled_class sc
       WHERE 1=1
     `;
-
-    let values = [];
+    const values = [];
     let index = 1;
 
     if (building_name) {
@@ -1063,13 +1076,11 @@ app.post('/faculty/check-rooms', async (req, res) => {
     }
 
     if (start_time && end_time) {
-      query += ` AND NOT (($${index}, $${index + 1}) OVERLAPS (sc.start_time, sc.end_time))`;
-      values.push(start_time, end_time);
-      index += 2;
+      // Use explicit TIME literals to avoid type ambiguity
+      query += ` AND NOT (sc.start_time < TIME '${end_time}' AND sc.end_time > TIME '${start_time}')`;
     }
 
     const result = await pool.query(query, values);
-
     res.json(result.rows);
 
   } catch (err) {

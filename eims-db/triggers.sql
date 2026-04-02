@@ -557,3 +557,20 @@ CREATE TRIGGER trg_prevent_registration
 BEFORE UPDATE ON Course_Registration
 FOR EACH ROW
 EXECUTE FUNCTION prevent_registration_after_close();
+
+--When student signs up add into results table
+
+CREATE OR REPLACE FUNCTION insert_initial_results()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO Results (student_id, cgpa, total_credits)
+    VALUES (NEW.student_id, 0, 0);
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER after_student_insert
+AFTER INSERT ON Students
+FOR EACH ROW
+EXECUTE FUNCTION insert_initial_results();

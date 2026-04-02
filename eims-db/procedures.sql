@@ -129,7 +129,17 @@ CREATE OR REPLACE FUNCTION make_payment(
     p_amount NUMERIC
 )
 RETURNS VOID AS $$
+DECLARE
+    fees_open BOOLEAN;
 BEGIN
+
+    SELECT is_fees_open INTO fees_open
+    FROM System_Config
+    WHERE config_id = 1;
+
+    IF fees_open IS NOT TRUE THEN
+        RAISE EXCEPTION 'Fee payment is currently closed';
+    END IF;
 
     IF p_amount <= 0 THEN
         RAISE EXCEPTION 'Invalid amount';
