@@ -300,6 +300,7 @@ RETURNS TABLE (
 )
 LANGUAGE sql
 AS $$
+
 WITH days AS (
   SELECT unnest(
     CASE 
@@ -310,18 +311,21 @@ WITH days AS (
 ),
 
 time_slots AS (
-  SELECT generate_series(
-    TIME '08:00',
-    TIME '17:30',
-    INTERVAL '30 minutes'
-  ) AS start_time
+  SELECT 
+    generate_series(
+      TIMESTAMP '2000-01-01 08:00:00',
+      TIMESTAMP '2000-01-01 17:30:00',
+      INTERVAL '30 minutes'
+    )::TIME AS start_time
 ),
 
 all_combinations AS (
-  SELECT r.building_name, r.room_number,
-         d.scheduled_day,
-         ts.start_time,
-         ts.start_time + INTERVAL '30 minutes' AS end_time
+  SELECT 
+    r.building_name, 
+    r.room_number,
+    d.scheduled_day,
+    ts.start_time,
+    (ts.start_time + INTERVAL '30 minutes')::TIME AS end_time
   FROM Rooms r
   CROSS JOIN days d
   CROSS JOIN time_slots ts
@@ -355,10 +359,12 @@ free_slots AS (
 
 grouped_slots AS (
   SELECT *,
-    start_time - (ROW_NUMBER() OVER (
-      PARTITION BY building_name, room_number, scheduled_day
-      ORDER BY start_time
-    ) * INTERVAL '30 minutes') AS grp
+    start_time - (
+      ROW_NUMBER() OVER (
+        PARTITION BY building_name, room_number, scheduled_day
+        ORDER BY start_time
+      ) * INTERVAL '30 minutes'
+    ) AS grp
   FROM free_slots
 )
 
@@ -366,22 +372,26 @@ SELECT
   building_name,
   room_number,
   scheduled_day,
-  MIN(start_time),
-  MAX(end_time)
+  MIN(start_time) AS start_time,
+  MAX(end_time) AS end_time
 FROM grouped_slots
 GROUP BY building_name, room_number, scheduled_day, grp
 ORDER BY scheduled_day, building_name, room_number, MIN(start_time);
+
 $$;
 
 CREATE OR REPLACE PROCEDURE insert_bookings(p_bookings JSON)
 LANGUAGE plpgsql
 AS $$
+
 DECLARE
   b JSON;
+
 BEGIN
   FOR b IN SELECT * FROM json_array_elements(p_bookings)
   LOOP
 
+    -- Conflict Check
     IF EXISTS (
       SELECT 1
       FROM (
@@ -404,25 +414,29 @@ BEGIN
         b->>'scheduled_day';
     END IF;
 
+    -- Insert Booking
     INSERT INTO booked_class (
-    building_name,
-    room_number,
-    scheduled_day,
-    start_time,
-    end_time,
-    faculty_id,
-    course_offering_id
+      building_name,
+      room_number,
+      scheduled_day,
+      start_time,
+      end_time,
+      faculty_id,
+      course_offering_id,
+      booking_date
     )
     VALUES (
-    b->>'building_name',
-    (b->>'room_number')::INT,
-    b->>'scheduled_day',
-    (b->>'start_time')::TIME,
-    (b->>'end_time')::TIME,
-    b->>'faculty_id',
-    (b->>'course_offering_id')::INT
+      b->>'building_name',
+      (b->>'room_number')::INT,
+      b->>'scheduled_day',
+      (b->>'start_time')::TIME,
+      (b->>'end_time')::TIME,
+      b->>'faculty_id',
+      (b->>'course_offering_id')::INT
+      (b->>'booking_date')::DATE
     );
 
   END LOOP;
+
 END;
 $$;

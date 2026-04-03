@@ -1,7 +1,7 @@
 -- Scheduled Class table
 -- Stores weekly class schedule for course offerings
 
-CREATE TABLE Scheduled_class (
+CREATE TABLE booked_class (
   booking_id SERIAL PRIMARY KEY,
   course_offering_id INT,
   building_name TEXT NOT NULL,

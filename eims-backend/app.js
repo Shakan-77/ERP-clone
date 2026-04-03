@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
 const bcrypt = require('bcrypt');
+const cron = require('node-cron');
 
 const app = express();
 
@@ -29,6 +30,92 @@ async function isRegistrationOpen() {
   const closeDate = result.rows[0].registration_close_date;
   return new Date(closeDate) >= new Date();
 }
+
+cron.schedule('0 0 * * *', async () => {
+  try {
+    const result = await pool.query(`
+      DELETE FROM booked_class
+      WHERE booking_date < CURRENT_DATE
+    `);
+
+    console.log("Old bookings deleted:", result.rowCount);
+
+  } catch (err) {
+    console.error("Cleanup error:", err);
+  }
+});
+
+cron.schedule('0 0 30 6 *', async () => {
+  try {
+    await pool.query(`DELETE FROM Feedback`);
+    console.log("Feedback deleted (June 30)");
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+cron.schedule('0 0 31 12 *', async () => {
+  try {
+    await pool.query(`DELETE FROM Feedback`);
+    console.log("Feedback deleted (Dec 31)");
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+cron.schedule('0 0 30 6 *', async () => {
+  try {
+    await pool.query(`DELETE FROM Scheduled_class`);
+    console.log("Scheduled classes cleared (June 30)");
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+cron.schedule('0 0 31 12 *', async () => {
+  try {
+    await pool.query(`DELETE FROM Scheduled_class`);
+    console.log("Scheduled classes cleared (Dec 31)");
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+cron.schedule('0 0 * * *', async () => {
+  try {
+    const result = await pool.query(`
+      DELETE FROM On_leave
+      WHERE end_date < CURRENT_DATE
+    `);
+
+    console.log("Old leave records deleted:", result.rowCount);
+
+  } catch (err) {
+    console.error("Leave cleanup error:", err);
+  }
+});
+
+const cron = require('node-cron');
+
+cron.schedule('0 0 * * *', async () => {
+  try {
+
+    await pool.query(`
+      DELETE FROM exam_seatings
+      WHERE exam_date < CURRENT_DATE
+    `);
+
+    const result = await pool.query(`
+      DELETE FROM exams
+      WHERE exam_date < CURRENT_DATE
+    `);
+
+    console.log("Old exams deleted:", result.rowCount);
+
+  } catch (err) {
+    console.error("Exam cleanup error:", err);
+  }
+});
 
 
 app.get('/', (req, res) => {
@@ -1108,17 +1195,34 @@ app.post('/faculty/book-rooms', async (req, res) => {
   const { bookings } = req.body;
 
   try {
-    // Validate input
+    if (!bookings || bookings.length === 0) {
+      return res.status(400).json({
+        error: "Bookings array is required"
+      });
+    }
+
     for (const b of bookings) {
       if (!b.course_offering_id) {
         return res.status(400).json({
           error: "course_offering_id is required for all bookings"
         });
       }
+
+      if (!b.booking_date) {
+        return res.status(400).json({
+          error: "booking_date is required for all bookings"
+        });
+      }
+
+      if (!b.start_time || !b.end_time) {
+        return res.status(400).json({
+          error: "start_time and end_time are required"
+        });
+      }
     }
 
     await pool.query(
-      `CALL insert_bookings($1)`,
+      `CALL insert_bookings($1::json)`,
       [JSON.stringify(bookings)]
     );
 
@@ -1128,8 +1232,30 @@ app.post('/faculty/book-rooms', async (req, res) => {
 
   } catch (err) {
     console.error(err);
+
     res.status(400).json({
       error: err.message
     });
+  }
+});
+
+
+app.get('/faculty/:id/bookings', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM booked_class
+       WHERE faculty_id = $1
+       ORDER BY scheduled_day, start_time`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching bookings");
   }
 });
