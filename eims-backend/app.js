@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
+const bankDB = require('./bank_db');
 const bcrypt = require('bcrypt');
 const cron = require('node-cron');
 
@@ -95,7 +96,6 @@ cron.schedule('0 0 * * *', async () => {
   }
 });
 
-const cron = require('node-cron');
 
 cron.schedule('0 0 * * *', async () => {
   try {
