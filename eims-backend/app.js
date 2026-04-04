@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
-const bankDB = require('./bank_db');
 const bcrypt = require('bcrypt');
 const cron = require('node-cron');
 
@@ -483,14 +482,8 @@ app.post('/student/:id/pay', async (req, res) => {
   const { id } = req.params;
   const { semester, amount_paid } = req.body;
 
-  const client = await pool.connect();
-
-  let remainingBalance;
-  let paymentData;
-  let email;
-
   try {
-    const configRes = await client.query(
+    const configRes = await pool.query(
       `SELECT is_fees_open FROM System_Config WHERE config_id = 1`
     );
 
@@ -502,98 +495,47 @@ app.post('/student/:id/pay', async (req, res) => {
       });
     }
 
+   
+    const payment_url = `http://localhost:4000/pay-fees?student_id=${id}&semester=${semester}&amount=${amount_paid}`;
+
+    res.json({
+      message: "Redirect to payment portal",
+      payment_url
+    });
+
+  } catch (err) {
+    console.error("Error initiating payment:", err);
+    res.status(500).json({
+      message: "Error initiating payment"
+    });
+  }
+});
+
+app.post('/student/payment-success', async (req, res) => {
+  const { student_id, semester, amount } = req.body;
+
+  const client = await pool.connect();
+
+  try {
     await client.query('BEGIN');
 
     await client.query(
       `SELECT make_payment($1, $2, $3)`,
-      [id, semester, amount_paid]
+      [student_id, semester, amount]
     );
-
-    const paymentRes = await client.query(
-      `SELECT * FROM Fee_Payment
-       WHERE student_id = $1
-       ORDER BY payment_id DESC
-       LIMIT 1`,
-      [id]
-    );
-
-    paymentData = paymentRes.rows[0];
-
-    const balanceRes = await client.query(
-      `SELECT remaining_balance FROM Balance WHERE student_id = $1`,
-      [id]
-    );
-
-    remainingBalance = balanceRes.rows[0].remaining_balance;
-
-    const studentRes = await client.query(
-      `SELECT college_email FROM Students WHERE student_id = $1`,
-      [id]
-    );
-
-    email = studentRes.rows[0].college_email;
 
     await client.query('COMMIT');
 
+    res.json({ message: "EIMS updated after payment" });
+
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error("FULL ERROR:", err);
-
-    return res.status(400).json({
-      message: err.message
-    });
+    res.status(500).json({ error: err.message });
   } finally {
     client.release();
   }
-
-  try {
-    if (remainingBalance === 0) {
-
-      const transcriptRes = await pool.query(
-        `SELECT semester, amount_paid, payment_date
-         FROM Fee_Payment
-         WHERE student_id = $1 AND semester = $2
-         ORDER BY payment_date`,
-        [id, semester]
-      );
-
-      let transcriptText = `Fee Payment Transcript (Semester ${semester}):\n\n`;
-
-      transcriptRes.rows.forEach((row, index) => {
-        transcriptText += `Payment ${index + 1}:\n`;
-        transcriptText += `Amount: ₹${row.amount_paid}\n`;
-        transcriptText += `Date: ${row.payment_date}\n\n`;
-      });
-
-      console.log("Email would be sent to:", email);
-      console.log(transcriptText);
-
-      /*
-      await transporter.sendMail({
-        from: '23cs01028@iitbbs.ac.in',
-        to: email,
-        subject: 'Fee Payment Complete + Transcript',
-        text: `Hello,
-
-Your fee payment is fully completed.
-
-${transcriptText}
-
-Thank you!`
-      });
-      */
-
-    }
-  } catch (mailErr) {
-    console.error("Email failed:", mailErr);
-  }
-
-  res.json({
-    message: "Payment successful",
-    payment: paymentData,
-    remaining_balance: remainingBalance
-  });
 });
+
 
 app.get('/student/:id/payment-history', async (req, res) => {
     const { id } = req.params;
@@ -1161,9 +1103,7 @@ app.get('/faculty/course/:course_offering_id/feedbacks', async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
-});
+
 
 app.get('/faculty/available-slots', async (req, res) => {
   const { day, course_offering_id } = req.query;
@@ -1259,3 +1199,8 @@ app.get('/faculty/:id/bookings', async (req, res) => {
     res.status(500).send("Error fetching bookings");
   }
 });
+
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
+});
+

@@ -160,6 +160,18 @@ BEGIN
     FOR UPDATE;
 
     IF from_balance < p_amount THEN
+     INSERT INTO Transfers (
+            from_account,
+            to_account,
+            amount,
+            status
+        )
+        VALUES (
+            p_from_account,
+            p_to_account,
+            p_amount,
+            'failed'
+        );
         RETURN 'Insufficient balance';
     END IF;
 
@@ -172,6 +184,19 @@ BEGIN
     UPDATE Accounts
     SET balance = balance + p_amount
     WHERE account_id = p_to_account;
+
+    INSERT INTO Transfers (
+        from_account,
+        to_account,
+        amount,
+        status
+    )
+    VALUES (
+        p_from_account,
+        p_to_account,
+        p_amount,
+        'completed'
+    );
 
 
     RETURN 'Transfer successful';
