@@ -189,10 +189,25 @@ app.post('/login', async (req, res) => {
 
     const user = result.rows[0];
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Try bcrypt comparison first (for newly hashed passwords)
+    let isMatch = await bcrypt.compare(password, user.password).catch(() => false);
+    
+    // If bcrypt fails, try plain text comparison (for existing users with plain passwords)
+    if (!isMatch && password === user.password) {
+      isMatch = true;
+    }
 
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid password" });
+    }
+
+    // If password was plain text, hash it now and update the database
+    if (password === user.password && !user.password.startsWith('$2')) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await pool.query(
+        "UPDATE Users SET password = $1 WHERE user_id = $2",
+        [hashedPassword, user_id]
+      );
     }
 
     res.json({
@@ -464,14 +479,62 @@ app.get('/student/courses/:id', async (req, res) => {
 app.get('/student/:id/fee-status', async (req, res) => {
     const { id } = req.params;
     try {
-        const result = await pool.query(
-            `SELECT * FROM Student_Fee_Status WHERE student_id = $1`,
+        // Get overall fee status
+        const feeResult = await pool.query(
+            `SELECT 
+                s.student_id,
+                d.fees as total_fee,
+                (d.fees - b.remaining_balance) as amount_paid,
+                b.remaining_balance as net_payable
+            FROM Students s
+            JOIN Discipline d ON s.discipline_id = d.discipline_id
+            JOIN Balance b ON s.student_id = b.student_id
+            WHERE s.student_id = $1`,
             [id]
         );
-        if (result.rows.length === 0) {
+
+        if (feeResult.rows.length === 0) {
             return res.status(404).json({ message: 'Student not found' });
         }
-        res.json(result.rows[0]);
+
+        const feeData = feeResult.rows[0];
+
+        // Get semester-wise fee breakdown for all 8 semesters
+        const semesterResult = await pool.query(
+            `WITH semesters AS (
+                SELECT 1 as semester UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
+                UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8
+            )
+            SELECT 
+                sem.semester,
+                d.fees as fee_amount,
+                COALESCE(SUM(fp.amount_paid), 0) as paid_amount,
+                d.fees - COALESCE(SUM(fp.amount_paid), 0) as balance,
+                CASE 
+                    WHEN d.fees - COALESCE(SUM(fp.amount_paid), 0) <= 0 THEN 'paid'
+                    WHEN CURRENT_DATE > (SELECT registration_close_date FROM System_Config LIMIT 1) THEN 'overdue'
+                    ELSE 'pending'
+                END as status
+            FROM Students s
+            JOIN Discipline d ON s.discipline_id = d.discipline_id
+            CROSS JOIN semesters sem
+            LEFT JOIN Fee_Payment fp ON s.student_id = fp.student_id AND fp.semester = sem.semester
+            WHERE s.student_id = $1 AND sem.semester = s.semester
+            GROUP BY sem.semester, d.fees
+            ORDER BY sem.semester`,
+            [id]
+        );
+
+        console.log("Semester fee status for student", id, ":", semesterResult.rows);
+
+        res.json({
+            student_id: feeData.student_id,
+            total_fee: feeData.total_fee,
+            amount_paid: feeData.amount_paid,
+            net_payable: feeData.net_payable,
+            semesters: semesterResult.rows
+        });
+
     } catch (err) {
         console.error(err);
         res.status(500).send('Server Error');
@@ -482,21 +545,28 @@ app.post('/student/:id/pay', async (req, res) => {
   const { id } = req.params;
   const { semester, amount_paid } = req.body;
 
+  console.log("Pay endpoint called with:", { id, semester, amount_paid });
+
   try {
     const configRes = await pool.query(
       `SELECT is_fees_open FROM System_Config WHERE config_id = 1`
     );
 
+    console.log("Config response:", configRes.rows);
+
     const isOpen = configRes.rows[0]?.is_fees_open;
 
     if (!isOpen) {
+      console.log("Fees are closed");
       return res.status(403).json({
         message: "Fee payment is currently closed by admin"
       });
     }
 
    
-    const payment_url = `http://localhost:4000/pay-fees?student_id=${id}&semester=${semester}&amount=${amount_paid}`;
+    const payment_url = `http://localhost:3001?student_id=${id}&semester=${semester}&amount=${amount_paid}`;
+
+    console.log("Sending payment_url:", payment_url);
 
     res.json({
       message: "Redirect to payment portal",
@@ -514,21 +584,31 @@ app.post('/student/:id/pay', async (req, res) => {
 app.post('/student/payment-success', async (req, res) => {
   const { student_id, semester, amount } = req.body;
 
+  console.log("=== PAYMENT SUCCESS ENDPOINT CALLED ===");
+  console.log("Received data:", { student_id, semester, amount });
+
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    await client.query(
+    console.log("Calling make_payment stored procedure...");
+
+    const result = await client.query(
       `SELECT make_payment($1, $2, $3)`,
       [student_id, semester, amount]
     );
 
+    console.log("Stored procedure result:", result);
+
     await client.query('COMMIT');
+
+    console.log("Payment recorded successfully in EIMS");
 
     res.json({ message: "EIMS updated after payment" });
 
   } catch (err) {
+    console.error("ERROR in payment-success:", err);
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
   } finally {
@@ -1200,7 +1280,7 @@ app.get('/faculty/:id/bookings', async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.listen(5000, () => {
+  console.log("Server running on port 5000");
 });
 

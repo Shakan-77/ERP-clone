@@ -558,13 +558,16 @@ BEFORE UPDATE ON Course_Registration
 FOR EACH ROW
 EXECUTE FUNCTION prevent_registration_after_close();
 
---When student signs up add into results table
+--When student signs up add into results table and balance table
 
 CREATE OR REPLACE FUNCTION insert_initial_results()
 RETURNS TRIGGER AS $$
 BEGIN
     INSERT INTO Results (student_id, cgpa, total_credits)
     VALUES (NEW.student_id, 0, 0);
+
+    INSERT INTO Balance (student_id, remaining_balance)
+    VALUES (NEW.student_id, (SELECT fees FROM Discipline WHERE discipline_id = NEW.discipline_id));
 
     RETURN NEW;
 END;
