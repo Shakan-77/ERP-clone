@@ -3,22 +3,38 @@ import StudentProfile from "../components/StudentProfile";
 import CourseRegistrations from "../components/CourseRegistrations";
 import Courses from "../components/Courses";
 import FeeStatus from "../components/FeeStatus";
+import Feedback from "../components/Feedback";
+import CDC from "../components/CDC";
+import Backlogs from "../components/Backlogs";
+import ExamsDashboard from "../components/ExamsDashboard";
+import SupplementaryExams from "../components/SupplementaryExams";
+import Timetable from "../components/Timetable";
+import LeaveRequest from "../components/LeaveRequest";
+import API from "../services/api";
+
 
 function Dashboard() {
   const [activeTab, setActiveTab] = useState("profile");
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [studentProfile, setStudentProfile] = useState(null);
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("user_id");
-    console.log("Dashboard - Loading userId from localStorage:", storedUserId);
     if (!storedUserId) {
-      console.log("No userId found, redirecting to login");
       window.location.href = "/";
-    } else {
-      setUserId(storedUserId);
+      return;
     }
-    setLoading(false);
+    setUserId(storedUserId);
+    // Fetch student profile to get actual student_id
+    API.get(`/student/profile/${storedUserId}`)
+      .then((res) => {
+        setStudentProfile(res.data);
+      })
+      .catch((err) => {
+        setStudentProfile(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const handleLogout = () => {
@@ -86,6 +102,62 @@ function Dashboard() {
                   >
                     <i className="fas fa-receipt me-2"></i> Fee Status & Payments
                   </button>
+                  <button
+                    className={`list-group-item list-group-item-action ${
+                      activeTab === "feedback" ? "active bg-primary text-white" : ""
+                    }`}
+                    onClick={() => setActiveTab("feedback")}
+                  >
+                    <i className="fas fa-comments me-2"></i> Course Feedback
+                  </button>
+                  <button
+                    className={`list-group-item list-group-item-action ${
+                      activeTab === "cdc" ? "active bg-primary text-white" : ""
+                    }`}
+                    onClick={() => setActiveTab("cdc")}
+                  >
+                    <i className="fas fa-briefcase me-2"></i> Career Development (CDC)
+                  </button>
+                  <button
+                    className={`list-group-item list-group-item-action ${
+                      activeTab === "backlogs" ? "active bg-primary text-white" : ""
+                    }`}
+                    onClick={() => setActiveTab("backlogs")}
+                  >
+                    <i className="fas fa-ban me-2"></i> Backlogs
+                  </button>
+                  <button
+                    className={`list-group-item list-group-item-action ${
+                      activeTab === "exams" ? "active bg-primary text-white" : ""
+                    }`}
+                    onClick={() => setActiveTab("exams")}
+                  >
+                    <i className="fas fa-calendar-alt me-2"></i> Exams
+                  </button>
+                  <button
+                    className={`list-group-item list-group-item-action ${
+                      activeTab === "supplementary" ? "active bg-primary text-white" : ""
+                    }`}
+                    onClick={() => setActiveTab("supplementary")}
+                  >
+                    <i className="fas fa-file-alt me-2"></i> Supplementary Exams
+                  </button>
+                  <button
+                    className={`list-group-item list-group-item-action ${
+                      activeTab === "timetable" ? "active bg-primary text-white" : ""
+                    }`}
+                    onClick={() => setActiveTab("timetable")}
+                  >
+                    <i className="fas fa-calendar-week me-2"></i> Timetable
+                  </button>
+                  <button
+                    className={`list-group-item list-group-item-action ${
+                      activeTab === "leave" ? "active bg-primary text-white" : ""
+                    }`}
+                    onClick={() => setActiveTab("leave")}
+                  >
+                    <i className="fas fa-calendar2-x me-2"></i> Leave Requests
+                  </button>
                 </div>
               </div>
             </div>
@@ -97,6 +169,15 @@ function Dashboard() {
             {activeTab === "registrations" && <CourseRegistrations userId={userId} />}
             {activeTab === "courses" && <Courses userId={userId} />}
             {activeTab === "fees" && <FeeStatus userId={userId} />}
+            {activeTab === "feedback" && <Feedback userId={userId} />}
+            {activeTab === "cdc" && <CDC userId={userId} />}
+            {activeTab === "backlogs" && <Backlogs userId={userId} />}
+            {activeTab === "exams" && <ExamsDashboard userId={userId} />}
+            {activeTab === "supplementary" && <SupplementaryExams userId={userId} />}
+            {activeTab === "timetable" && <Timetable userId={userId} />}
+            {activeTab === "leave" && studentProfile && (
+              <LeaveRequest studentId={studentProfile.student_id} />
+            )}
           </div>
         </div>
       </div>

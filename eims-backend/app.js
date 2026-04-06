@@ -823,6 +823,35 @@ app.post('/student/submit-feedback', async (req, res) => {
   }
 });
 
+app.get('/student/:id/submitted-feedback', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT 
+          fb.student_id,
+          fb.course_offering_id,
+          c.course_name,
+          fc.faculty_id,
+          fc.faculty_name,
+          fb.feedback
+       FROM Feedback fb
+       JOIN Course_Offerings co ON fb.course_offering_id = co.course_offering_id
+       JOIN Courses c ON co.course_id = c.course_id
+       JOIN Faculty fc ON co.faculty_id = fc.faculty_id
+       WHERE fb.student_id = $1
+       ORDER BY c.course_name`,
+      [id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching submitted feedback");
+  }
+});
+
 app.post('/student/apply-leave', async (req, res) => {
   let { student_id, start_date, end_date, reason } = req.body;
 

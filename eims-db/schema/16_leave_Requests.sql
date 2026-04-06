@@ -7,6 +7,7 @@ CREATE TABLE Leave_Requests (
     start_date DATE,
     end_date DATE,
     reason TEXT,
+    applied_on TIMESTAMP DEFAULT NOW(),
     status VARCHAR(20)
         CHECK (status IN ('Pending','Approved','Rejected'))
 );

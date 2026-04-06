@@ -8,6 +8,9 @@ function CourseRegistrations({ userId }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [prerequisites, setPrerequisites] = useState({});
+  const [expandedCourse, setExpandedCourse] = useState(null);
+  const [loadingPrereqs, setLoadingPrereqs] = useState({});
 
   useEffect(() => {
     fetchRegistrations();
@@ -50,6 +53,30 @@ function CourseRegistrations({ userId }) {
       ...selectedCourses,
       [courseOfferingId]: !selectedCourses[courseOfferingId]
     });
+  };
+
+  const fetchPrerequisites = async (courseOfferingId) => {
+    try {
+      setLoadingPrereqs(prev => ({ ...prev, [courseOfferingId]: true }));
+      const res = await API.get(`/course-offering/${courseOfferingId}/prerequisites`);
+      setPrerequisites(prev => ({ ...prev, [courseOfferingId]: res.data }));
+    } catch (err) {
+      console.error(err);
+      setPrerequisites(prev => ({ ...prev, [courseOfferingId]: { prerequisites: [] } }));
+    } finally {
+      setLoadingPrereqs(prev => ({ ...prev, [courseOfferingId]: false }));
+    }
+  };
+
+  const toggleExpandCourse = (courseOfferingId) => {
+    if (expandedCourse === courseOfferingId) {
+      setExpandedCourse(null);
+    } else {
+      setExpandedCourse(courseOfferingId);
+      if (!prerequisites[courseOfferingId]) {
+        fetchPrerequisites(courseOfferingId);
+      }
+    }
   };
 
   const handleSubmit = async () => {
@@ -105,6 +132,11 @@ function CourseRegistrations({ userId }) {
           <p className="text-muted">No courses available for registration.</p>
         ) : (
           <>
+            <div className="alert alert-info" role="alert">
+              <small>
+                <strong style={{ color: "#ff6b6b" }}>■ Red border</strong> = Backlog course (retake required)
+              </small>
+            </div>
             <div className="table-responsive">
               <table className="table table-hover">
                 <thead className="table-light">
@@ -114,29 +146,81 @@ function CourseRegistrations({ userId }) {
                     <th>Faculty</th>
                     <th>Semester</th>
                     <th width="10%" className="text-center">
+                      <i className="fas fa-info-circle"></i>
+                    </th>
+                    <th width="10%" className="text-center">
                       <i className="fas fa-check-square"></i> Select
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {registrations.map((course, index) => (
-                    <tr key={course.course_offering_id}>
-                      <td className="text-center text-muted">{index + 1}</td>
-                      <td>
-                        <strong>{course.course_name}</strong>
-                      </td>
-                      <td>{course.faculty_name || "TBD"}</td>
-                      <td>{course.semester || "N/A"}</td>
-                      <td className="text-center">
-                        <input
-                          type="checkbox"
-                          className="form-check-input"
-                          checked={selectedCourses[course.course_offering_id] || false}
-                          onChange={() => handleCheckboxChange(course.course_offering_id)}
-                          disabled={submitting}
-                        />
-                      </td>
-                    </tr>
+                    <div key={course.course_offering_id}>
+                      <tr style={{
+                        borderLeft: course.is_backlog ? "4px solid #ff6b6b" : "4px solid transparent"
+                      }}>
+                        <td className="text-center text-muted">{index + 1}</td>
+                        <td>
+                          <strong>{course.course_name}</strong>
+                          {course.is_backlog && (
+                            <span className="badge bg-danger ms-2">Backlog</span>
+                          )}
+                        </td>
+                        <td>{course.faculty_name || "TBD"}</td>
+                        <td>{course.semester || "N/A"}</td>
+                        <td className="text-center">
+                          <button
+                            className="btn btn-sm btn-outline-info"
+                            onClick={() => toggleExpandCourse(course.course_offering_id)}
+                            title="View prerequisites"
+                          >
+                            <i className="fas fa-chevron-down"></i>
+                          </button>
+                        </td>
+                        <td className="text-center">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            checked={selectedCourses[course.course_offering_id] || false}
+                            onChange={() => handleCheckboxChange(course.course_offering_id)}
+                            disabled={submitting}
+                          />
+                        </td>
+                      </tr>
+                      {expandedCourse === course.course_offering_id && (
+                        <tr className="bg-light">
+                          <td colSpan="6">
+                            <div className="p-3">
+                              <h6 className="mb-2">Prerequisites:</h6>
+                              {loadingPrereqs[course.course_offering_id] ? (
+                                <small className="text-muted">Loading prerequisites...</small>
+                              ) : prerequisites[course.course_offering_id]?.prerequisites?.length === 0 ? (
+                                <small className="text-muted">No prerequisites required</small>
+                              ) : (
+                                <div className="table-responsive">
+                                  <table className="table table-sm table-bordered">
+                                    <thead>
+                                      <tr className="table-light">
+                                        <th>Prerequisite Course</th>
+                                        <th>Credits</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {prerequisites[course.course_offering_id]?.prerequisites?.map((prereq, idx) => (
+                                        <tr key={idx}>
+                                          <td>{prereq.course_name}</td>
+                                          <td>{prereq.credits}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </div>
                   ))}
                 </tbody>
               </table>

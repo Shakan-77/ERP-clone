@@ -56,7 +56,6 @@ BEGIN
     END IF;
 
     INSERT INTO Leave_Requests(
-        request_id,
         student_id,
         start_date,
         end_date,
@@ -64,7 +63,6 @@ BEGIN
         status
     )
     VALUES (
-        nextval('leave_request_seq'),
         p_student_id,
         p_start_date,
         p_end_date,

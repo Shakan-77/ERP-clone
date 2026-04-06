@@ -2,6 +2,7 @@ import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import FacultyDashboard from "./pages/FacultyDashboard";
 import { useState, useEffect } from "react";
 
 function App() {
@@ -16,6 +17,10 @@ function App() {
   }, []);
 
   if (isLoggedIn) {
+    const role = localStorage.getItem("role");
+    if (role === "Faculty") {
+      return <FacultyDashboard />;
+    }
     return <Dashboard />;
   }
 
