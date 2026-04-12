@@ -30,6 +30,7 @@ SELECT
     co.course_offering_id,
     c.course_id,
     c.course_name,
+    c.credits,
     co.semester,
     f.faculty_id,
     f.faculty_name
@@ -207,7 +208,8 @@ SELECT
     c.course_name,
     co.course_offering_id,
     co.year_offering,
-    co.semester
+    co.semester,
+    co.capacity
 FROM Faculty f
 JOIN Course_Offerings co
     ON f.faculty_id = co.faculty_id
@@ -239,6 +241,7 @@ SELECT
     lr.end_date,
     lr.reason,
     lr.status,
+    lr.applied_on,
     sfa.faculty_id
 FROM Leave_Requests lr
 JOIN Student_Faculty_Advisor sfa

@@ -167,7 +167,7 @@ CREATE SEQUENCE exam_seq START 1;
 
 CREATE OR REPLACE FUNCTION add_exam(
     p_course_offering_id INT,
-    p_room_number VARCHAR,
+    p_room_number INT ,
     p_building_name VARCHAR,
     p_date DATE
 )

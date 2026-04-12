@@ -334,6 +334,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE TRIGGER trg_registration_open_window
+AFTER UPDATE OF registration_open_date
+ON System_Config
+FOR EACH ROW
+EXECUTE FUNCTION trg_registration_open();
+
 --Move approved courses to Course_Allotted and remove from Course_Registration
 
 CREATE OR REPLACE FUNCTION handle_course_approval()
@@ -451,35 +457,31 @@ INSERT INTO Results (student_id, cgpa, total_credits)
 
 SELECT 
     s.student_id,
-
-    (
-        (COALESCE(r.cgpa,0) * COALESCE(r.total_credits,0)) +
-        SUM(
-            c.credits *
-            CASE g.grade
-                WHEN 'Ex' THEN 10
-                WHEN 'A' THEN 9
-                WHEN 'B' THEN 8
-                WHEN 'C' THEN 7
-                WHEN 'D' THEN 6
-                WHEN 'E' THEN 5
-                WHEN 'P' THEN 4
-                ELSE 0
-            END
+    
+    -- Calculate CGPA: (Sum of grade_points * credits) / Total credits
+    -- CGPA = sum of (grade_points * credits) / sum of credits (for passed courses)
+    CASE 
+        WHEN SUM(CASE WHEN g.grade <> 'F' THEN c.credits ELSE 0 END) = 0 THEN 0
+        ELSE ROUND(
+            SUM(
+                c.credits *
+                CASE g.grade
+                    WHEN 'Ex' THEN 10
+                    WHEN 'A' THEN 9
+                    WHEN 'B' THEN 8
+                    WHEN 'C' THEN 7
+                    WHEN 'D' THEN 6
+                    WHEN 'E' THEN 5
+                    WHEN 'P' THEN 4
+                    ELSE 0
+                END
+            )::NUMERIC / 
+            SUM(CASE WHEN g.grade <> 'F' THEN c.credits ELSE 0 END)::NUMERIC, 
+            2
         )
-    )
-    /
-    NULLIF(
-        COALESCE(r.total_credits,0) +
-        SUM(
-            CASE 
-                WHEN g.grade <> 'F' THEN c.credits
-                ELSE 0
-            END
-        ), 0
-    ) AS cgpa,
+    END AS cgpa,
 
-    COALESCE(r.total_credits,0) +
+    -- Total credits from passed courses across all semesters
     SUM(
         CASE 
             WHEN g.grade <> 'F' THEN c.credits
@@ -489,20 +491,16 @@ SELECT
 
 FROM Students s
 
-LEFT JOIN Results r 
-    ON s.student_id = r.student_id
-
 JOIN Grades g 
     ON s.student_id = g.student_id
 
 JOIN Course_Offerings co 
     ON g.course_offering_id = co.course_offering_id
-    AND co.semester = s.semester
 
 JOIN Courses c 
     ON co.course_id = c.course_id
 
-GROUP BY s.student_id, r.cgpa, r.total_credits
+GROUP BY s.student_id
 
 ON CONFLICT (student_id)
 DO UPDATE SET
@@ -577,3 +575,19 @@ CREATE TRIGGER after_student_insert
 AFTER INSERT ON Students
 FOR EACH ROW
 EXECUTE FUNCTION insert_initial_results();
+
+-- Initialize attendance record when student enrolls in course
+CREATE OR REPLACE FUNCTION initialize_course_attendance()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO Attendance(student_id, course_offering_id, class_date, status)
+    VALUES (NEW.student_id, NEW.course_offering_id, CURRENT_DATE, 'Absent');
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_initialize_attendance
+AFTER INSERT ON Course_Allotted
+FOR EACH ROW
+EXECUTE FUNCTION initialize_course_attendance();

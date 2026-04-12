@@ -8,7 +8,10 @@ import LeaveApprovals from '../components/faculty/LeaveApprovals';
 import AdvisoryStudents from '../components/faculty/AdvisoryStudents';
 import CourseFeedback from '../components/faculty/CourseFeedback';
 import RoomBookings from '../components/faculty/RoomBookings';
+import FacultySchedule from '../components/faculty/FacultySchedule';
+import FacultyProfile from '../components/FacultyProfile';
 import './FacultyDashboard.css';
+import Navbar from '../components/Navbar';
 
 const FacultyDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -57,12 +60,20 @@ const FacultyDashboard = () => {
     }
   };
 
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = '/login';
+  };
+
   return (
     <div className="faculty-dashboard">
+      <Navbar />
       <div className="dashboard-header">
         <div className="header-content">
           <h1>Faculty Dashboard</h1>
           <p className="subtitle">Welcome, {facultyName || 'Faculty Member'}</p>
+          <button className="logout-btn" onClick={handleLogout} style={{float: 'right', background: '#d9534f', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', marginLeft: '20px'}}>Logout</button>
         </div>
       </div>
 
@@ -125,6 +136,8 @@ const FacultyDashboard = () => {
           <nav className="sidebar-nav">
             {[
               { id: 'overview', label: 'Overview', icon: 'bi-house' },
+              { id: 'profile', label: 'My Profile', icon: 'bi-person-circle' },
+              { id: 'schedule', label: 'My Schedule', icon: 'bi-calendar-week' },
               { id: 'courses', label: 'Course Management', icon: 'bi-book' },
               { id: 'approvals', label: 'Registration Approvals', icon: 'bi-check-circle' },
               { id: 'attendance', label: 'Attendance', icon: 'bi-calendar-check' },
@@ -214,7 +227,9 @@ const FacultyDashboard = () => {
             </div>
           )}
 
+          {activeTab === 'profile' && <FacultyProfile userId={facultyId} />}
           {activeTab === 'courses' && <CourseManagement />}
+          {activeTab === 'schedule' && <FacultySchedule />}
           {activeTab === 'approvals' && <RegistrationApprovals />}
           {activeTab === 'attendance' && <AttendanceManagement />}
           {activeTab === 'grades' && <GradeManagement />}
