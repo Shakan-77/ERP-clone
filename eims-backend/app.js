@@ -1579,46 +1579,47 @@ app.get('/faculty/:id/schedule', async (req, res) => {
     console.log('Fetching schedule for faculty:', id);
     
     const result = await pool.query(
-      `SELECT 
-        sc.course_offering_id,
-        sc.scheduled_day,
-        sc.start_time,
-        sc.end_time,
-        sc.room_number,
-        sc.building_name,
-        c.course_id,
-        c.course_name,
-        FALSE AS is_extra
-       FROM Scheduled_class sc
-       INNER JOIN Course_Offerings co ON sc.course_offering_id = co.course_offering_id
-       INNER JOIN Courses c ON co.course_id = c.course_id
-       WHERE co.faculty_id = $1
+      `SELECT * FROM (
+         SELECT
+           sc.course_offering_id,
+           sc.scheduled_day,
+           sc.start_time,
+           sc.end_time,
+           sc.room_number,
+           sc.building_name,
+           c.course_id,
+           c.course_name,
+           FALSE AS is_extra
+         FROM Scheduled_class sc
+         INNER JOIN Course_Offerings co ON sc.course_offering_id = co.course_offering_id
+         INNER JOIN Courses c ON co.course_id = c.course_id
+         WHERE co.faculty_id = $1
 
-       UNION ALL
+         UNION ALL
 
-       SELECT
-        bc.course_offering_id,
-        bc.scheduled_day,
-        bc.start_time,
-        bc.end_time,
-        bc.room_number,
-        bc.building_name,
-        c.course_id,
-        COALESCE(c.course_name, 'Extra Session') AS course_name,
-        TRUE AS is_extra
-       FROM booked_class bc
-       LEFT JOIN Course_Offerings co ON bc.course_offering_id = co.course_offering_id
-       LEFT JOIN Courses c ON co.course_id = c.course_id
-       WHERE bc.faculty_id = $1
-
-       ORDER BY 
-         CASE 
-           WHEN scheduled_day = 'Monday' THEN 1
-           WHEN scheduled_day = 'Tuesday' THEN 2
-           WHEN scheduled_day = 'Wednesday' THEN 3
-           WHEN scheduled_day = 'Thursday' THEN 4
-           WHEN scheduled_day = 'Friday' THEN 5
-           WHEN scheduled_day = 'Saturday' THEN 6
+         SELECT
+           bc.course_offering_id,
+           bc.scheduled_day,
+           bc.start_time,
+           bc.end_time,
+           bc.room_number,
+           bc.building_name,
+           c.course_id,
+           COALESCE(c.course_name, 'Extra Session') AS course_name,
+           TRUE AS is_extra
+         FROM booked_class bc
+         LEFT JOIN Course_Offerings co ON bc.course_offering_id = co.course_offering_id
+         LEFT JOIN Courses c ON co.course_id = c.course_id
+         WHERE bc.faculty_id = $1
+       ) combined
+       ORDER BY
+         CASE scheduled_day
+           WHEN 'Monday'    THEN 1
+           WHEN 'Tuesday'   THEN 2
+           WHEN 'Wednesday' THEN 3
+           WHEN 'Thursday'  THEN 4
+           WHEN 'Friday'    THEN 5
+           WHEN 'Saturday'  THEN 6
            ELSE 7
          END,
          start_time`,
