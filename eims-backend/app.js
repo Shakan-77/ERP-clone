@@ -1070,16 +1070,47 @@ app.get('/student/:id/timetable', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT *
-       FROM Student_Timetable_View
-       WHERE student_id = $1
-       ORDER BY 
+      `SELECT * FROM (
+         SELECT
+           ca.student_id,
+           c.course_name,
+           sc.scheduled_day,
+           sc.start_time,
+           sc.end_time,
+           sc.building_name,
+           sc.room_number,
+           'REGULAR' AS class_type
+         FROM Course_Allotted ca
+         JOIN Scheduled_class sc ON ca.course_offering_id = sc.course_offering_id
+         JOIN Course_Offerings co ON sc.course_offering_id = co.course_offering_id
+         JOIN Courses c ON co.course_id = c.course_id
+         WHERE ca.student_id = $1
+
+         UNION ALL
+
+         SELECT
+           ca.student_id,
+           c.course_name,
+           bc.scheduled_day,
+           bc.start_time,
+           bc.end_time,
+           bc.building_name,
+           bc.room_number,
+           'EXTRA' AS class_type
+         FROM Course_Allotted ca
+         JOIN booked_class bc ON ca.course_offering_id = bc.course_offering_id
+         JOIN Course_Offerings co ON bc.course_offering_id = co.course_offering_id
+         JOIN Courses c ON co.course_id = c.course_id
+         WHERE ca.student_id = $1
+       ) combined
+       ORDER BY
          CASE scheduled_day
-           WHEN 'Monday' THEN 1
-           WHEN 'Tuesday' THEN 2
+           WHEN 'Monday'    THEN 1
+           WHEN 'Tuesday'   THEN 2
            WHEN 'Wednesday' THEN 3
-           WHEN 'Thursday' THEN 4
-           WHEN 'Friday' THEN 5
+           WHEN 'Thursday'  THEN 4
+           WHEN 'Friday'    THEN 5
+           ELSE 6
          END,
          start_time`,
       [id]

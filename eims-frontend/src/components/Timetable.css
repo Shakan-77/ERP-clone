@@ -255,16 +255,16 @@
 
 /* Extra class highlighting */
 .schedule-cell-extra {
-  background: #fff3e0 !important;
-  border-left: 3px solid #ff9800 !important;
+  background: #fff0f0 !important;
+  border-left: 4px solid #e53935 !important;
 }
 
 .schedule-cell-extra:hover {
-  background-color: #ffe0b2 !important;
+  background-color: #ffcdd2 !important;
 }
 
 .extra-badge {
-  background-color: #ff9800;
+  background-color: #e53935;
   color: white;
   font-size: 0.65rem;
   padding: 0.1rem 0.4rem;
@@ -277,7 +277,7 @@
 }
 
 .summary-card-extra {
-  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%) !important;
+  background: linear-gradient(135deg, #e53935 0%, #b71c1c 100%) !important;
 }
 
 /* Timetable legend */
@@ -309,8 +309,8 @@
 }
 
 .legend-extra {
-  background: #fff3e0;
-  border: 1px solid #ffcc80;
-  border-left: 3px solid #ff9800;
+  background: #fff0f0;
+  border: 1px solid #ef9a9a;
+  border-left: 3px solid #e53935;
 }
 
