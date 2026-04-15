@@ -5,17 +5,19 @@ RETURNS TRIGGER AS $$
 DECLARE
     months_diff INT;
 BEGIN
-
-    months_diff := EXTRACT(YEAR FROM AGE(CURRENT_DATE, NEW.join_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, NEW.join_date));
-
-    NEW.semester := (months_diff / 6) + 1;
+    UPDATE Students s
+    SET semester = (
+        (EXTRACT(YEAR FROM AGE(CURRENT_DATE, s.join_date)) * 12 +
+         EXTRACT(MONTH FROM AGE(CURRENT_DATE, s.join_date))) / 6
+    ) + 1
+    
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_update_semester
-BEFORE INSERT OR UPDATE OF join_date
+BEFORE INSERT OR UPDATE OF is_fees_open
 ON Students
 FOR EACH ROW
 EXECUTE FUNCTION update_semester();
@@ -215,36 +217,38 @@ DECLARE
     room_cap INT;
     students INT;
     room_no INT;
+    exam_date DATE;
     building TEXT;
 BEGIN
-    -- get room info from Exams table
-    SELECT room_number, building_name INTO room_no, building
+    -- get exam details
+    SELECT room_number, building_name, date_of_exam
+    INTO room_no, building, exam_date
     FROM Exams
     WHERE exam_id = NEW.exam_id;
 
-    -- get room capacity from Rooms table
+    -- get room capacity
     SELECT capacity INTO room_cap
     FROM Rooms
     WHERE room_number = room_no
       AND building_name = building;
 
-    -- count current students in Exam_Seating for this exam
+    -- count ALL students in same room + date (across all exams)
     SELECT COUNT(*) INTO students
-    FROM Exam_Seating
-    WHERE exam_id = NEW.exam_id;
+    FROM Exam_Seating es
+    JOIN Exams e ON e.exam_id = es.exam_id
+    WHERE e.room_number = room_no
+      AND e.building_name = building
+      AND e.date_of_exam = exam_date;
 
-    IF students >= room_cap THEN
-        RAISE EXCEPTION 'Room capacity exceeded for exam %', NEW.exam_id;
+    -- capacity check
+    IF students + 1 > room_cap THEN
+        RAISE EXCEPTION 'Room capacity exceeded for % % on %',
+            building, room_no, exam_date;
     END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_room_capacity
-BEFORE INSERT ON Exam_Seating
-FOR EACH ROW
-EXECUTE FUNCTION check_room_capacity();
 
 --Update Balance after fees update in discipline by admin
 
@@ -575,19 +579,3 @@ CREATE TRIGGER after_student_insert
 AFTER INSERT ON Students
 FOR EACH ROW
 EXECUTE FUNCTION insert_initial_results();
-
--- Initialize attendance record when student enrolls in course
-CREATE OR REPLACE FUNCTION initialize_course_attendance()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO Attendance(student_id, course_offering_id, class_date, status)
-    VALUES (NEW.student_id, NEW.course_offering_id, CURRENT_DATE, 'Absent');
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_initialize_attendance
-AFTER INSERT ON Course_Allotted
-FOR EACH ROW
-EXECUTE FUNCTION initialize_course_attendance();

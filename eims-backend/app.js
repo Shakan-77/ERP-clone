@@ -1457,7 +1457,7 @@ app.post('/faculty/book-rooms', async (req, res) => {
       });
     }
 
-    // For now, use default times if not provided
+    // For now, we will use default times if not provided
     const bookingStartTime = start_time || '09:00:00';
     const bookingEndTime = end_time || '10:00:00';
 
@@ -1709,17 +1709,17 @@ app.get('/student/:id/grades', async (req, res) => {
   }
 });
 
-// Admin SQL Console Endpoint
+
 app.post('/admin/run-query', async (req, res) => {
   const { query, admin_id } = req.body;
 
   try {
-    // Validate admin role
+    
     if (!admin_id) {
       return res.status(403).json({ error: 'Admin ID required' });
     }
 
-    // Check if user is admin
+    
     const adminCheck = await pool.query(
       `SELECT role FROM Users WHERE user_id = $1`,
       [admin_id]
@@ -1729,12 +1729,12 @@ app.post('/admin/run-query', async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized: Admin access required' });
     }
 
-    // Validate query
+    
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       return res.status(400).json({ error: 'Invalid query: Query cannot be empty' });
     }
 
-    // Remove trailing semicolon and normalize
+    
     let cleanQuery = query.trim();
     if (cleanQuery.endsWith(';')) {
       cleanQuery = cleanQuery.slice(0, -1).trim();
@@ -1742,29 +1742,28 @@ app.post('/admin/run-query', async (req, res) => {
 
     const queryUpper = cleanQuery.toUpperCase();
 
-    // Allow SELECT, INSERT, UPDATE, DELETE queries
+    
     if (!queryUpper.startsWith('SELECT') && !queryUpper.startsWith('INSERT') && 
         !queryUpper.startsWith('UPDATE') && !queryUpper.startsWith('DELETE')) {
       return res.status(400).json({ error: 'Invalid query: Only SELECT, INSERT, UPDATE, and DELETE queries are allowed' });
     }
 
-    // Block dangerous DDL/DCL operations only
+   
     const dangerousKeywords = ['DROP', 'ALTER', 'TRUNCATE', 'CREATE', 'EXEC', 'EXECUTE', 'GRANT', 'REVOKE'];
     for (const keyword of dangerousKeywords) {
-      // Use word boundary check to avoid false positives with column names
+     
       const regex = new RegExp(`\\b${keyword}\\b`, 'i');
       if (regex.test(queryUpper)) {
         return res.status(400).json({ error: `Invalid query: ${keyword} operations are not allowed` });
       }
     }
 
-    // Enforce LIMIT only for SELECT queries if not present
+    
     let executionQuery = cleanQuery;
     if (queryUpper.startsWith('SELECT')) {
       if (!queryUpper.includes('LIMIT')) {
         executionQuery += ' LIMIT 100';
       } else {
-        // Ensure LIMIT doesn't exceed 100
         const limitMatch = executionQuery.match(/LIMIT\s+(\d+)/i);
         if (limitMatch && parseInt(limitMatch[1]) > 100) {
           executionQuery = executionQuery.replace(/LIMIT\s+\d+/i, 'LIMIT 100');
@@ -1772,7 +1771,7 @@ app.post('/admin/run-query', async (req, res) => {
       }
     }
 
-    // Execute query with timeout
+   
     const startTime = Date.now();
     let result;
 
@@ -1792,10 +1791,10 @@ app.post('/admin/run-query', async (req, res) => {
 
     const executionTime = Date.now() - startTime;
 
-    // Determine affected rows - for SELECT it's result.rows.length, for DML it's result.rowCount
+    
     const affectedRows = result.rows ? result.rows.length : (result.rowCount || 0);
 
-    // Log the query
+    
     try {
       await pool.query(
         `INSERT INTO Admin_Query_Logs (admin_id, query_string, executed_at, row_count, execution_time_ms)
@@ -1804,10 +1803,10 @@ app.post('/admin/run-query', async (req, res) => {
       );
     } catch (logErr) {
       console.error('Error logging query:', logErr);
-      // Don't fail if logging fails - just log the error
+     
     }
 
-    // Return results
+   
     res.json({
       rows: result.rows || [],
       rowCount: affectedRows,
@@ -1818,7 +1817,7 @@ app.post('/admin/run-query', async (req, res) => {
   } catch (err) {
     console.error('Error executing admin query:', err);
 
-    // Try to log the error
+   
     try {
       const { admin_id, query } = req.body;
       if (admin_id && query) {
@@ -1842,7 +1841,7 @@ app.post('/admin/run-query', async (req, res) => {
   }
 });
 
-// Create Admin Query Logs table if it doesn't exist
+
 pool.query(`
   CREATE TABLE IF NOT EXISTS Admin_Query_Logs (
     log_id SERIAL PRIMARY KEY,

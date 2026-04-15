@@ -438,3 +438,21 @@ BEGIN
 
 END;
 $$;
+
+--Semester update logic
+
+CREATE OR REPLACE FUNCTION update_semester()
+RETURNS TRIGGER AS $$
+DECLARE
+    months_diff INT;
+BEGIN
+    UPDATE Students s
+    SET semester = (
+        (EXTRACT(YEAR FROM AGE(CURRENT_DATE, s.join_date)) * 12 +
+         EXTRACT(MONTH FROM AGE(CURRENT_DATE, s.join_date))) / 6
+    ) + 1
+    
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
