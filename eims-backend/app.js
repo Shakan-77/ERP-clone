@@ -1348,45 +1348,82 @@ app.get('/faculty/course/:course_offering_id/feedbacks', async (req, res) => {
 
 
 app.get('/faculty/available-slots', async (req, res) => {
-  const { building } = req.query;
+  const { building, day, start_time, end_time, faculty_id } = req.query;
 
   try {
-    console.log('Fetching available rooms for building:', building);
-    
-    const query = building
-      ? `SELECT DISTINCT
-          r.room_number,
-          r.building_name,
+    console.log('Fetching available slots:', { building, day, start_time, end_time, faculty_id });
+
+    // If a specific time window is requested, check whether the faculty already has
+    // a Scheduled_class or booked_class that overlaps it on that day.
+    if (faculty_id && day && start_time && end_time) {
+      const conflictResult = await pool.query(
+        `SELECT 1
+         FROM (
+           SELECT co.faculty_id, sc.scheduled_day, sc.start_time, sc.end_time
+           FROM Scheduled_class sc
+           JOIN Course_Offerings co ON co.course_offering_id = sc.course_offering_id
+           UNION ALL
+           SELECT bc.faculty_id, bc.scheduled_day, bc.start_time, bc.end_time
+           FROM booked_class bc
+         ) AS all_classes
+         WHERE faculty_id = $1
+           AND scheduled_day = $2
+           AND start_time < $4::TIME
+           AND end_time   > $3::TIME
+         LIMIT 1`,
+        [faculty_id, day, start_time, end_time]
+      );
+
+      if (conflictResult.rows.length > 0) {
+        return res.status(409).json({
+          error: 'You already have a class scheduled during this time slot'
+        });
+      }
+    }
+
+    // Call get_room_availability(day) — returns contiguous free windows per room,
+    // already excluding any Scheduled_class and booked_class conflicts.
+    // Then keep only windows that fully cover the requested [start_time, end_time].
+    const availResult = await pool.query(
+      `SELECT
+          ra.building_name,
+          ra.room_number,
           r.capacity
-         FROM Rooms r
-         WHERE r.building_name = $1
-         ORDER BY r.building_name, r.room_number`
-      : `SELECT DISTINCT
-          r.room_number,
-          r.building_name,
-          r.capacity
-         FROM Rooms r
-         ORDER BY r.building_name, r.room_number`;
+       FROM get_room_availability($1) ra
+       JOIN Rooms r
+         ON r.room_number   = ra.room_number
+        AND r.building_name = ra.building_name
+       WHERE ($2::TEXT IS NULL OR ra.building_name = $2)
+         AND ($3::TIME IS NULL OR ra.start_time <= $3::TIME)
+         AND ($4::TIME IS NULL OR ra.end_time   >= $4::TIME)
+       ORDER BY ra.building_name, ra.room_number`,
+      [day || null, building || null, start_time || null, end_time || null]
+    );
 
-    const result = building
-      ? await pool.query(query, [building])
-      : await pool.query(query);
+    // Deduplicate — a room may have multiple free windows covering the request.
+    const seen = new Set();
+    const slots = [];
+    for (const row of availResult.rows) {
+      const key = `${row.building_name}:${row.room_number}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        slots.push({
+          room_id: row.room_number,
+          room_name: `Room ${row.room_number}`,
+          building_name: row.building_name,
+          building_number: row.building_name,
+          capacity: row.capacity,
+          room_capacity: row.capacity
+        });
+      }
+    }
 
-    const slots = result.rows.map(room => ({
-      room_id: room.room_number,
-      room_name: `Room ${room.room_number}`,
-      building_name: room.building_name,
-      building_number: room.building_name,
-      capacity: room.capacity,
-      room_capacity: room.capacity
-    }));
-
-    console.log('Available slots:', slots);
+    console.log('Available slots returned:', slots.length);
     res.json(slots);
 
   } catch (err) {
     console.error('Error fetching slots:', err);
-    res.status(500).json({ error: "Error fetching slots", details: err.message });
+    res.status(500).json({ error: 'Error fetching slots', details: err.message });
   }
 });
 
@@ -1550,26 +1587,45 @@ app.get('/faculty/:id/schedule', async (req, res) => {
         sc.room_number,
         sc.building_name,
         c.course_id,
-        c.course_name
+        c.course_name,
+        FALSE AS is_extra
        FROM Scheduled_class sc
        INNER JOIN Course_Offerings co ON sc.course_offering_id = co.course_offering_id
        INNER JOIN Courses c ON co.course_id = c.course_id
        WHERE co.faculty_id = $1
+
+       UNION ALL
+
+       SELECT
+        bc.course_offering_id,
+        bc.scheduled_day,
+        bc.start_time,
+        bc.end_time,
+        bc.room_number,
+        bc.building_name,
+        c.course_id,
+        COALESCE(c.course_name, 'Extra Session') AS course_name,
+        TRUE AS is_extra
+       FROM booked_class bc
+       LEFT JOIN Course_Offerings co ON bc.course_offering_id = co.course_offering_id
+       LEFT JOIN Courses c ON co.course_id = c.course_id
+       WHERE bc.faculty_id = $1
+
        ORDER BY 
          CASE 
-           WHEN sc.scheduled_day = 'Monday' THEN 1
-           WHEN sc.scheduled_day = 'Tuesday' THEN 2
-           WHEN sc.scheduled_day = 'Wednesday' THEN 3
-           WHEN sc.scheduled_day = 'Thursday' THEN 4
-           WHEN sc.scheduled_day = 'Friday' THEN 5
-           WHEN sc.scheduled_day = 'Saturday' THEN 6
+           WHEN scheduled_day = 'Monday' THEN 1
+           WHEN scheduled_day = 'Tuesday' THEN 2
+           WHEN scheduled_day = 'Wednesday' THEN 3
+           WHEN scheduled_day = 'Thursday' THEN 4
+           WHEN scheduled_day = 'Friday' THEN 5
+           WHEN scheduled_day = 'Saturday' THEN 6
            ELSE 7
          END,
-         sc.start_time`,
+         start_time`,
       [id]
     );
 
-    console.log('Query found', result.rows.length, 'scheduled classes for faculty:', id);
+    console.log('Query found', result.rows.length, 'schedule entries for faculty:', id);
     
     const schedule = result.rows.map(row => ({
       course_offering_id: row.course_offering_id,
@@ -1579,7 +1635,8 @@ app.get('/faculty/:id/schedule', async (req, res) => {
       start_time: row.start_time,
       end_time: row.end_time,
       room_number: row.room_number,
-      building_name: row.building_name
+      building_name: row.building_name,
+      is_extra: row.is_extra
     }));
 
     console.log('Faculty schedule:', schedule);

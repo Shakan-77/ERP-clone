@@ -63,12 +63,25 @@ const RoomBookings = () => {
   const fetchAvailableRooms = async () => {
     try {
       setLoading(true);
-      console.log('Fetching available rooms for building:', selectedBuilding);
-      const response = await api.get(`/faculty/available-slots?building=${selectedBuilding}`);
+      setError('');
+      console.log('Fetching available rooms:', { selectedBuilding, selectedDay, selectedTime, endTime });
+      const params = new URLSearchParams({
+        building: selectedBuilding,
+        day: selectedDay,
+        start_time: `${selectedTime}:00`,
+        end_time: `${endTime}:00`,
+        faculty_id: facultyId
+      });
+      const response = await api.get(`/faculty/available-slots?${params.toString()}`);
       console.log('Available rooms:', response.data);
       setAvailableRooms(response.data);
     } catch (err) {
       console.error('Error fetching available rooms:', err);
+      if (err.response?.status === 409) {
+        setError(err.response.data.error || 'You already have a class scheduled during this time slot');
+      } else {
+        setError('Failed to load available rooms: ' + (err.response?.data?.error || err.message));
+      }
       setAvailableRooms([]);
     } finally {
       setLoading(false);

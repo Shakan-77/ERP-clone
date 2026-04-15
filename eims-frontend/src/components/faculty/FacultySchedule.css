@@ -258,3 +258,72 @@
     font-size: 1.5rem;
   }
 }
+
+/* Extra class highlighting */
+.class-cell-extra {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%) !important;
+  border: 2px solid #ff9800 !important;
+}
+
+.class-cell-extra:hover {
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3) !important;
+}
+
+.extra-badge {
+  background-color: #ff9800;
+  color: white;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.summary-card-extra {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%) !important;
+  border-color: #ff9800 !important;
+}
+
+.summary-card-extra h6 {
+  color: #e65100;
+}
+
+.summary-card-extra h4 {
+  color: #e65100 !important;
+}
+
+/* Timetable legend */
+.timetable-legend {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-color {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legend-regular {
+  background: linear-gradient(135deg, #bbdefb 0%, #c5e1a5 100%);
+  border: 2px solid #2196f3;
+}
+
+.legend-extra {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  border: 2px solid #ff9800;
+}

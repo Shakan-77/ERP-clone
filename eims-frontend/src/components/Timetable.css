@@ -253,3 +253,64 @@
   }
 }
 
+/* Extra class highlighting */
+.schedule-cell-extra {
+  background: #fff3e0 !important;
+  border-left: 3px solid #ff9800 !important;
+}
+
+.schedule-cell-extra:hover {
+  background-color: #ffe0b2 !important;
+}
+
+.extra-badge {
+  background-color: #ff9800;
+  color: white;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  margin-bottom: 0.25rem;
+}
+
+.summary-card-extra {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%) !important;
+}
+
+/* Timetable legend */
+.timetable-legend {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-color {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legend-regular {
+  background: #bbdefb;
+  border: 1px solid #90caf9;
+}
+
+.legend-extra {
+  background: #fff3e0;
+  border: 1px solid #ffcc80;
+  border-left: 3px solid #ff9800;
+}
+

@@ -13,15 +13,14 @@ const FacultySchedule = () => {
   // Generate 30-minute time slots with interval display
   const generateTimeSlots = () => {
     const slots = [];
-    for (let hour = 9; hour < 17; hour++) {
-      const start = `${String(hour).padStart(2, '0')}:00`;
-      const end = `${String(hour).padStart(2, '0')}:30`;
-      slots.push({ start, end, display: `${start} - ${end}` });
-      
-      if (hour < 16) {
-        const nextStart = `${String(hour).padStart(2, '0')}:30`;
-        const nextEnd = hour === 15 ? '16:00' : `${String(hour + 1).padStart(2, '0')}:00`;
-        slots.push({ start: nextStart, end: nextEnd, display: `${nextStart} - ${nextEnd}` });
+    for (let hour = 8; hour < 18; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const nextMinute = (minute + 30) % 60;
+        const nextHour = minute === 30 ? hour + 1 : hour;
+        if (nextHour > 18) break;
+        const start = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        const end   = `${String(nextHour).padStart(2, '0')}:${String(nextMinute).padStart(2, '0')}`;
+        slots.push({ start, end, display: `${start} - ${end}` });
       }
     }
     return slots;
@@ -135,18 +134,20 @@ const FacultySchedule = () => {
                           
                           if (classInfo) {
                             const rowSpan = getRowSpan(classInfo.start_time, classInfo.end_time);
+                            const isExtra = classInfo.is_extra;
                             return (
                               <td 
                                 key={`${day}-${slot.start}`} 
                                 className="schedule-cell"
                                 style={{ 
-                                  backgroundColor: '#bbdefb',
+                                  backgroundColor: isExtra ? '#fff3e0' : '#bbdefb',
                                   verticalAlign: 'top',
                                   padding: '8px'
                                 }}
                                 rowSpan={rowSpan}
                               >
-                                <div className="class-cell" style={{ border: 'none', background: 'transparent' }}>
+                                <div className={`class-cell${isExtra ? ' class-cell-extra' : ''}`} style={{ border: 'none', background: 'transparent' }}>
+                                  {isExtra && <span className="extra-badge">Extra Class</span>}
                                   <div className="course-name">
                                     <strong>{classInfo.course_name}</strong>
                                   </div>
@@ -177,23 +178,33 @@ const FacultySchedule = () => {
                 </table>
               </div>
 
-              {/* Summary Card */}
+              {/* Legend */}
+              <div className="timetable-legend mt-3 mb-2">
+                <div className="legend-item">
+                  <div className="legend-color legend-regular"></div>
+                  <span>Regular Class</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color legend-extra"></div>
+                  <span>Extra Class (booked)</span>
+                </div>
+              </div>
+
+              {/* Summary Cards */}
               <div className="schedule-summary mt-4">
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="summary-card">
-                      <h6>Total Classes</h6>
-                      <h4>{schedule.length}</h4>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="summary-card">
-                      <h6>Days with Classes</h6>
-                      <h4>
-                        {new Set(schedule.map((c) => c.scheduled_day)).size}
-                      </h4>
-                    </div>
-                  </div>
+                <div className="summary-card">
+                  <h6>Total Classes</h6>
+                  <h4>{schedule.length}</h4>
+                </div>
+                <div className="summary-card">
+                  <h6>Days with Classes</h6>
+                  <h4>
+                    {new Set(schedule.map((c) => c.scheduled_day)).size}
+                  </h4>
+                </div>
+                <div className="summary-card summary-card-extra">
+                  <h6>Extra Classes</h6>
+                  <h4>{schedule.filter(c => c.is_extra).length}</h4>
                 </div>
               </div>
             </div>

@@ -179,13 +179,13 @@ function Timetable({ userId }) {
             {/* Summary Cards */}
             <div className="schedule-summary mb-4">
               <div className="row">
-                <div className="col-md-6">
+                <div className="col-md-4">
                   <div className="summary-card">
                     <h6>Total Classes</h6>
                     <h4>{timetable.length}</h4>
                   </div>
                 </div>
-                <div className="col-md-6">
+                <div className="col-md-4">
                   <div className="summary-card">
                     <h6>Days with Classes</h6>
                     <h4>
@@ -193,6 +193,24 @@ function Timetable({ userId }) {
                     </h4>
                   </div>
                 </div>
+                <div className="col-md-4">
+                  <div className="summary-card summary-card-extra">
+                    <h6>Extra Classes</h6>
+                    <h4>{timetable.filter(c => c.class_type === 'EXTRA').length}</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="timetable-legend mb-3">
+              <div className="legend-item">
+                <div className="legend-color legend-regular"></div>
+                <span>Regular Class</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color legend-extra"></div>
+                <span>Extra Class (booked)</span>
               </div>
             </div>
 
@@ -245,13 +263,15 @@ function Timetable({ userId }) {
                               renderedCells.add(`${day}-${slotIdx + i}`);
                             }
 
+                            const isExtra = classAtThisTime.class_type === 'EXTRA';
                             return (
                               <td
                                 key={cellKey}
-                                className="schedule-cell"
+                                className={`schedule-cell${isExtra ? ' schedule-cell-extra' : ''}`}
                                 rowSpan={rowSpan}
                               >
                                 <div className="class-content">
+                                  {isExtra && <span className="extra-badge">Extra Class</span>}
                                   <div className="course-name">{classAtThisTime.course_name}</div>
                                   <div className="location-info">
                                     {classAtThisTime.building_name} -  {classAtThisTime.room_number}
